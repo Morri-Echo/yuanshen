@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>任务完成图片生成器</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="control-panel" aria-label="图片生成设置">
+        <div class="brand">
+          <h1>任务完成图片生成器</h1>
+        </div>
+
+        <label class="field">
+          <span>上传图片</span>
+          <input id="imageInput" type="file" accept="image/*">
+        </label>
+
+        <label class="field">
+          <span>第 1 行文字</span>
+          <input id="line1Input" type="text" value="序章 第一幕 完成">
+        </label>
+
+        <label class="field">
+          <span>第 2 行文字</span>
+          <input id="line2Input" type="text" value="捕风的异乡人">
+        </label>
+
+        <fieldset class="field radio-group">
+          <legend>输出尺寸</legend>
+          <label>
+            <input type="radio" name="sizeMode" value="16:9" checked>
+            <span>16:9</span>
+          </label>
+          <label>
+            <input type="radio" name="sizeMode" value="source">
+            <span>跟随上传图片比例</span>
+          </label>
+        </fieldset>
+
+        <label class="field compact-field">
+          <span>遮罩颜色</span>
+          <input id="overlayColorInput" type="color" value="#12151f">
+        </label>
+
+        <label class="field">
+          <span>遮罩透明度 <strong id="opacityValue">62%</strong></span>
+          <input id="overlayOpacityInput" type="range" min="0" max="1" step="0.01" value="0.62">
+        </label>
+
+        <button id="exportButton" class="primary-button" type="button">导出图片</button>
+        <p id="statusText" class="status-text">上传图片后可导出生成结果。</p>
+      </section>
+
+      <section class="preview-panel" aria-label="图片预览">
+        <canvas id="previewCanvas" width="1920" height="1080"></canvas>
+      </section>
+    </main>
+
+    <script src="renderer-core.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

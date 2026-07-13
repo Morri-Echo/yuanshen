@@ -15,16 +15,15 @@ const expectedEmblemOptions = [
   ['nuodekalai', '空月之歌'],
 ];
 
-assert.match(
-  html,
-  /<span>选择大图标<\/span>\s*<select id="emblemSelect">/u,
-  'the emblem selector should immediately follow its label'
+const emblemFieldMarkup = html.match(
+  /<label class="field">\s*<span>选择大图标<\/span>\s*<select id="emblemSelect">([\s\S]*?)<\/select>\s*<\/label>/u
+);
+assert.ok(
+  emblemFieldMarkup,
+  'emblemSelect and its label text should be grouped in the same field label'
 );
 
-const emblemSelectMarkup = html.match(/<select id="emblemSelect">([\s\S]*?)<\/select>/u);
-assert.ok(emblemSelectMarkup, 'emblemSelect should exist');
-
-const actualEmblemOptions = [...emblemSelectMarkup[1].matchAll(
+const actualEmblemOptions = [...emblemFieldMarkup[1].matchAll(
   /<option value="([^"]+)">([^<]+)<\/option>/gu
 )].map((match) => [match[1], match[2]]);
 
@@ -37,6 +36,10 @@ assert.deepEqual(
 const opacityInputPosition = html.indexOf('id="overlayOpacityInput"');
 const emblemSelectPosition = html.indexOf('id="emblemSelect"');
 const exportButtonPosition = html.indexOf('id="exportButton"');
+
+assert.ok(opacityInputPosition >= 0, 'overlayOpacityInput should exist');
+assert.ok(emblemSelectPosition >= 0, 'emblemSelect should exist');
+assert.ok(exportButtonPosition >= 0, 'exportButton should exist');
 
 assert.ok(
   opacityInputPosition < emblemSelectPosition && emblemSelectPosition < exportButtonPosition,

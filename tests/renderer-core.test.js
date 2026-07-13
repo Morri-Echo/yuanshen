@@ -1,11 +1,13 @@
 const assert = require('node:assert/strict');
 const {
   DEFAULTS,
+  EMBLEM_KEYS,
   clampOpacity,
   createRenderState,
   getOverlayLayout,
   getCanvasSize,
   getCoverRect,
+  normalizeEmblem,
 } = require('../renderer-core.js');
 
 function test(name, fn) {
@@ -43,13 +45,37 @@ test('cover rect center-crops a tall source into 16:9 canvas', () => {
 test('default render state matches requested overlay defaults', () => {
   const state = createRenderState();
   assert.equal(DEFAULTS.mode, '16:9');
+  assert.equal(DEFAULTS.emblem, 'mengdei');
   assert.equal(state.mode, '16:9');
+  assert.equal(state.emblem, 'mengdei');
   assert.equal(state.line1, '序章 第一幕 完成');
   assert.equal(state.line2, '捕风的异乡人');
   assert.equal(state.line3, '任务完成');
   assert.equal(state.line4, '未完待续');
   assert.equal(state.overlayColor, '#12151f');
   assert.equal(state.overlayOpacity, 0.62);
+});
+
+test('emblem keys list every supported option in canonical order', () => {
+  assert.deepEqual(EMBLEM_KEYS, [
+    'mengdei',
+    'liyue',
+    'daoqi',
+    'xuni',
+    'fengdan',
+    'nata',
+    'nuodekalai',
+  ]);
+});
+
+test('emblem normalization accepts supported values', () => {
+  assert.equal(normalizeEmblem('fengdan'), 'fengdan');
+  assert.equal(createRenderState({ emblem: 'nata' }).emblem, 'nata');
+});
+
+test('unknown emblem values fall back to the default', () => {
+  assert.equal(normalizeEmblem('unknown'), 'mengdei');
+  assert.equal(createRenderState({ emblem: 'unknown' }).emblem, 'mengdei');
 });
 
 test('render state accepts editable lines and overlay overrides', () => {

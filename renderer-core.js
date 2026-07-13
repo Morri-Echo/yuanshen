@@ -1,5 +1,16 @@
+const EMBLEM_KEYS = Object.freeze([
+  'mengdei',
+  'liyue',
+  'daoqi',
+  'xuni',
+  'fengdan',
+  'nata',
+  'nuodekalai',
+]);
+
 const DEFAULTS = {
   mode: '16:9',
+  emblem: 'mengdei',
   outputWidth: 1920,
   outputHeight: 1080,
   line1: '序章 第一幕 完成',
@@ -16,6 +27,10 @@ function clampOpacity(value) {
     return DEFAULTS.overlayOpacity;
   }
   return Math.min(1, Math.max(0, number));
+}
+
+function normalizeEmblem(value) {
+  return EMBLEM_KEYS.includes(value) ? value : DEFAULTS.emblem;
 }
 
 function getCanvasSize(mode, image) {
@@ -46,6 +61,7 @@ function getCoverRect(imageWidth, imageHeight, canvasWidth, canvasHeight) {
 function createRenderState(overrides = {}) {
   return {
     mode: overrides.mode || DEFAULTS.mode,
+    emblem: normalizeEmblem(overrides.emblem),
     line1: overrides.line1 ?? DEFAULTS.line1,
     line2: overrides.line2 ?? DEFAULTS.line2,
     line3: DEFAULTS.line3,
@@ -82,10 +98,12 @@ function getOverlayLayout(width, height) {
 if (typeof module !== 'undefined') {
   module.exports = {
     DEFAULTS,
+    EMBLEM_KEYS,
     clampOpacity,
     createRenderState,
     getOverlayLayout,
     getCanvasSize,
     getCoverRect,
+    normalizeEmblem,
   };
 }

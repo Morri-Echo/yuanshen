@@ -12,6 +12,7 @@
 - 编辑画面中的两行标题文字。
 - 选择固定 `16:9` 输出或沿用原图尺寸。
 - 调整遮罩颜色和透明度。
+- 在蒙德、璃月、稻妻、须弥、枫丹、纳塔和空月之歌七种大图标之间即时切换。
 - 在浏览器中生成并导出 PNG 图片。
 - 所有处理均在本地浏览器中完成，不会上传用户图片。
 
@@ -36,8 +37,9 @@ http://127.0.0.1:8000/index.html
 1. 点击“上传图片”选择本地图片。
 2. 修改第一行和第二行文字。
 3. 选择输出尺寸，并按需调整遮罩颜色和透明度。
-4. 在右侧画布中检查预览效果。
-5. 点击“导出图片”，下载生成的 PNG 文件。
+4. 选择要展示的大图标。
+5. 在右侧画布中检查预览效果。
+6. 点击“导出图片”，下载生成的 PNG 文件。
 
 ## 项目结构
 
@@ -54,7 +56,7 @@ http://127.0.0.1:8000/index.html
 └─ 2.jpg                   本地冒烟测试图片
 ```
 
-`assets/` 中的素材会随项目一并保留。网页当前主要使用 `mengdei.png` 和 `weiwandaixu-clean.png`，其余素材可用于后续样式迭代。
+`assets/` 中的素材会随项目一并保留。网页运行时使用七个区域 PNG：`mengdei.png`、`liyue.png`、`daoqi.png`、`xuni.png`、`fengdan.png`、`nata.png`、`nuodekalai.png`，以及 `weiwandaixu-clean.png`。
 
 ## 验证
 
@@ -65,6 +67,7 @@ node --check script.js
 node tests\renderer-core.test.js
 node tests\clean-assets.test.js
 node tests\static-ui.test.js
+node tests\emblem-loading.test.js
 ```
 
 启动本地服务器后，可以运行 Edge 冒烟测试：
@@ -73,7 +76,7 @@ node tests\static-ui.test.js
 node tests\edge-smoke.js
 ```
 
-该测试会访问本地网页，并刷新 `outputs/task-overlay-sample.png`。
+该测试会访问本地网页，验证全部七种大图标选择，并刷新 `outputs/task-overlay-sample.png`。
 
 ## 开源协议与素材声明
 

@@ -364,16 +364,23 @@
     await Promise.all(
       EMBLEM_KEYS.map(async (key) => {
         const { src } = EMBLEM_ASSETS[key];
+        let image;
+        let bounds;
         try {
-          const image = await loadImage(src);
-          overlayAssets.emblems[key] = { image, bounds: getVisibleBounds(image) };
-          render();
+          image = await loadImage(src);
+          bounds = getVisibleBounds(image);
         } catch {
           failedKeys.add(key);
           const option = emblemSelect.querySelector(`option[value="${key}"]`);
           if (option) {
             option.disabled = true;
           }
+          return;
+        }
+
+        overlayAssets.emblems[key] = { image, bounds };
+        if (emblemSelect.value === key) {
+          render();
         }
       })
     );

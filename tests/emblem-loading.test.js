@@ -6,15 +6,16 @@ const vm = require('node:vm');
 const root = path.resolve(__dirname, '..');
 const coreSource = fs.readFileSync(path.join(root, 'renderer-core.js'), 'utf8');
 const scriptSource = fs.readFileSync(path.join(root, 'script.js'), 'utf8');
-const emblemKeys = [
-  'mengdei',
-  'liyue',
-  'daoqi',
-  'xuni',
-  'fengdan',
-  'nata',
-  'nuodekalai',
+const emblemCases = [
+  { key: 'mengdei', label: '蒙德', src: 'assets/mengdei.png' },
+  { key: 'liyue', label: '璃月', src: 'assets/liyue.png' },
+  { key: 'daoqi', label: '稻妻', src: 'assets/daoqi.png' },
+  { key: 'xuni', label: '须弥', src: 'assets/xuni.png' },
+  { key: 'fengdan', label: '枫丹', src: 'assets/fengdan.png' },
+  { key: 'nata', label: '纳塔', src: 'assets/nata.png' },
+  { key: 'nuodekalai', label: '空月之歌', src: 'assets/nuodekalai.png' },
 ];
+const emblemKeys = emblemCases.map(({ key }) => key);
 
 function createElement(initial = {}) {
   const listeners = new Map();
@@ -41,10 +42,12 @@ function createElement(initial = {}) {
   };
 }
 
-function createDrawingContext(drawCalls) {
+function createDrawingContext(drawCalls, onRender) {
   const gradient = () => ({ addColorStop() {} });
   return {
-    clearRect() {},
+    clearRect() {
+      onRender();
+    },
     drawImage(...args) {
       drawCalls.push(args);
     },
@@ -105,7 +108,13 @@ function createHarness(options = {}) {
     return match ? optionsByKey[match[1]] || null : null;
   };
 
-  const mainContext = createDrawingContext(drawCalls);
+  let renderCount = 0;
+  const mainContext = createDrawingContext(drawCalls, () => {
+    renderCount += 1;
+    if (renderCount === options.throwOnRenderCount) {
+      throw new Error(`render failed at attempt ${renderCount}`);
+    }
+  });
   const mainCanvas = createElement({
     width: 1920,
     height: 1080,
@@ -266,6 +275,9 @@ function createHarness(options = {}) {
     elements,
     optionsByKey,
     scratchCanvases,
+    get renderCount() {
+      return renderCount;
+    },
     release(source) {
       heldSources.delete(source);
       for (const complete of heldLoads.get(source) || []) {
@@ -286,20 +298,58 @@ function test(name, callback) {
   tests.push([name, callback]);
 }
 
-test('one failed emblem disables only that option and falls back canonically', async () => {
-  const harness = createHarness({
-    initialEmblem: 'xuni',
-    failedSources: ['assets/xuni.png'],
-    delayTicks: { 'assets/mengdei.png': 3 },
-  });
-  await harness.flush();
+test('every canonical emblem key draws its exact asset path', async () => {
+  for (const { key, src } of emblemCases) {
+    const harness = createHarness({ search: `?testImage=query.png&emblem=${key}` });
+    await harness.flush();
 
-  assert.equal(harness.optionsByKey.xuni.disabled, true);
-  for (const key of emblemKeys.filter((key) => key !== 'xuni')) {
-    assert.equal(harness.optionsByKey[key].disabled, false, `${key} should remain enabled`);
+    assert.equal(harness.elements.emblemSelect.value, key);
+    assert.ok(
+      harness.drawCalls.some(([source]) => source?.src === src),
+      `${key} should draw ${src}`
+    );
   }
-  assert.equal(harness.elements.emblemSelect.value, 'mengdei');
-  assert.match(harness.elements.statusText.textContent, /须弥/u);
+});
+
+test('every failed emblem reports its exact label while other assets remain usable', async () => {
+  for (const { key, label, src } of emblemCases) {
+    const harness = createHarness({
+      initialEmblem: key,
+      failedSources: [src],
+      delayTicks: { 'assets/mengdei.png': 3 },
+    });
+    await harness.flush();
+
+    assert.equal(harness.optionsByKey[key].disabled, true);
+    for (const availableKey of emblemKeys.filter((candidate) => candidate !== key)) {
+      assert.equal(
+        harness.optionsByKey[availableKey].disabled,
+        false,
+        `${availableKey} should remain enabled when ${key} fails`
+      );
+    }
+
+    const expectedFallback = key === 'mengdei' ? 'liyue' : 'mengdei';
+    const fallbackSource = emblemCases.find(
+      ({ key: candidate }) => candidate === expectedFallback
+    ).src;
+    assert.equal(harness.elements.emblemSelect.value, expectedFallback);
+    if (key === 'mengdei') {
+      assert.equal(
+        harness.elements.emblemSelect.value,
+        'liyue',
+        'the failed default emblem should fall back to Liyue'
+      );
+    }
+    assert.ok(
+      harness.drawCalls.some(([source]) => source?.src === fallbackSource),
+      `${expectedFallback} should remain drawable when ${key} fails`
+    );
+    assert.ok(
+      harness.elements.statusText.textContent.endsWith(`以下大图标加载失败：${label}。`),
+      `${key} should report the exact label ${label}`
+    );
+  }
 });
 
 test('asset warning remains visible after upload and export activity', async () => {
@@ -347,6 +397,33 @@ test('a loaded default emblem renders before the slowest emblem finishes', async
     harness.release(source);
   }
   await harness.flush();
+});
+
+test('unrelated successful emblem loads do not render the full canvas', async () => {
+  const heldSources = emblemKeys
+    .filter((key) => key !== 'liyue')
+    .map((key) => `assets/${key}.png`);
+  const harness = createHarness({ heldSources });
+  const initialRenderCount = harness.renderCount;
+  await harness.flush(4);
+
+  assert.equal(
+    harness.renderCount,
+    initialRenderCount,
+    'loading an unselected emblem should not render the full canvas'
+  );
+
+  for (const source of heldSources) {
+    harness.release(source);
+  }
+  await harness.flush();
+});
+
+test('a render exception does not disable a successfully loaded emblem', async () => {
+  const harness = createHarness({ throwOnRenderCount: 2 });
+  await harness.flush();
+
+  assert.equal(harness.optionsByKey.mengdei.disabled, false);
 });
 
 test('large visible-bound scans are downsampled and map back to source bounds', async () => {

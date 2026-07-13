@@ -58,6 +58,41 @@ assert.equal(
   'the cleaned emblem PNG should be the primary emblem asset'
 );
 
+const expectedEmblemAssetPaths = [
+  'assets/mengdei.png',
+  'assets/liyue.png',
+  'assets/daoqi.png',
+  'assets/xuni.png',
+  'assets/fengdan.png',
+  'assets/nata.png',
+  'assets/nuodekalai.png',
+];
+
+for (const assetPath of expectedEmblemAssetPaths) {
+  assert.ok(
+    script.includes(assetPath),
+    `script should load the emblem asset ${assetPath}`
+  );
+}
+
+assert.match(
+  script,
+  /emblemSelect\.addEventListener\(\s*['"]change['"]\s*,\s*render\s*\)/u,
+  'changing emblemSelect should render the selected emblem immediately'
+);
+
+assert.match(
+  script,
+  /drawCenteredAsset\(\s*overlayAssets\.emblems\[state\.emblem\]/u,
+  'the center overlay should draw the emblem selected in render state'
+);
+
+assert.match(
+  script,
+  /option\.disabled\s*=\s*true/u,
+  'an emblem option should be disabled when its asset fails to load'
+);
+
 assert.equal(
   script.includes('assets/renwuwancheng.webp'),
   false,

@@ -1,8 +1,14 @@
 (function () {
-  const ASSET_PATHS = {
-    emblem: 'assets/mengdei.png',
-    continuation: 'assets/weiwandaixu-clean.png',
-  };
+  const EMBLEM_ASSETS = Object.freeze({
+    mengdei: { label: '蒙德', src: 'assets/mengdei.png' },
+    liyue: { label: '璃月', src: 'assets/liyue.png' },
+    daoqi: { label: '稻妻', src: 'assets/daoqi.png' },
+    xuni: { label: '须弥', src: 'assets/xuni.png' },
+    fengdan: { label: '枫丹', src: 'assets/fengdan.png' },
+    nata: { label: '纳塔', src: 'assets/nata.png' },
+    nuodekalai: { label: '空月之歌', src: 'assets/nuodekalai.png' },
+  });
+  const CONTINUATION_PATH = 'assets/weiwandaixu-clean.png';
 
   const imageInput = document.getElementById('imageInput');
   const line1Input = document.getElementById('line1Input');
@@ -10,13 +16,14 @@
   const overlayColorInput = document.getElementById('overlayColorInput');
   const overlayOpacityInput = document.getElementById('overlayOpacityInput');
   const opacityValue = document.getElementById('opacityValue');
+  const emblemSelect = document.getElementById('emblemSelect');
   const exportButton = document.getElementById('exportButton');
   const statusText = document.getElementById('statusText');
   const canvas = document.getElementById('previewCanvas');
   const ctx = canvas.getContext('2d');
 
   const overlayAssets = {
-    emblem: null,
+    emblems: {},
     continuation: null,
   };
   let uploadedImage = null;
@@ -28,6 +35,7 @@
   function currentState() {
     return createRenderState({
       mode: currentMode(),
+      emblem: emblemSelect.value,
       line1: line1Input.value.trim() || DEFAULTS.line1,
       line2: line2Input.value.trim() || DEFAULTS.line2,
       overlayColor: overlayColorInput.value,
@@ -108,7 +116,7 @@
     } = layout;
 
     drawEmblemGlow(cx, emblemY, emblemSize);
-    drawCenteredAsset(overlayAssets.emblem, cx, emblemY, null, emblemSize * 1.16, 0.98);
+    drawCenteredAsset(overlayAssets.emblems[state.emblem], cx, emblemY, null, emblemSize * 1.16, 0.98);
     drawTextLine(state.line1, cx, line1Y, line1Size, 700, '#ded0bb', 0.95, width * 0.42);
     drawTextLine(state.line2, cx, line2Y, line2Size, 850, '#fff8ed', 1, width * 0.47);
     drawOrnamentDivider(cx, dividerY, dividerWidth, height);
@@ -344,16 +352,44 @@
     });
   }
 
-  async function loadOverlayAssets() {
-    const entries = await Promise.all(
-      Object.entries(ASSET_PATHS).map(async ([key, src]) => {
-        const image = await loadImage(src);
-        return [key, { image, bounds: getVisibleBounds(image) }];
+  async function loadEmblemAssets() {
+    const failedKeys = new Set();
+
+    await Promise.all(
+      EMBLEM_KEYS.map(async (key) => {
+        const { src } = EMBLEM_ASSETS[key];
+        try {
+          const image = await loadImage(src);
+          overlayAssets.emblems[key] = { image, bounds: getVisibleBounds(image) };
+        } catch {
+          failedKeys.add(key);
+          const option = emblemSelect.querySelector(`option[value="${key}"]`);
+          if (option) {
+            option.disabled = true;
+          }
+        }
       })
     );
-    for (const [key, asset] of entries) {
-      overlayAssets[key] = asset;
+
+    const availableKeys = EMBLEM_KEYS.filter((key) => overlayAssets.emblems[key]);
+    if (availableKeys.length > 0 && !availableKeys.includes(emblemSelect.value)) {
+      emblemSelect.value = availableKeys[0];
     }
+
+    if (availableKeys.length === 0) {
+      statusText.textContent = '大图标全部加载失败，请检查 assets 目录。';
+    } else if (failedKeys.size > 0) {
+      const failedLabels = EMBLEM_KEYS
+        .filter((key) => failedKeys.has(key))
+        .map((key) => EMBLEM_ASSETS[key].label);
+      statusText.textContent = `以下大图标加载失败：${failedLabels.join('、')}。`;
+    }
+  }
+
+  async function loadOverlayAssets() {
+    const image = await loadImage(CONTINUATION_PATH);
+    overlayAssets.continuation = { image, bounds: getVisibleBounds(image) };
+    await loadEmblemAssets();
     render();
   }
 
@@ -433,6 +469,10 @@
     if (params.has('line2')) {
       line2Input.value = params.get('line2') || DEFAULTS.line2;
     }
+    if (params.has('emblem')) {
+      const requestedEmblem = params.get('emblem');
+      emblemSelect.value = normalizeEmblem(requestedEmblem);
+    }
     loadImageSource(safeName, safeName);
   }
 
@@ -455,6 +495,8 @@
     document.querySelectorAll('input[name="sizeMode"]').forEach((control) => {
       control.addEventListener('change', render);
     });
+
+    emblemSelect.addEventListener('change', render);
 
     exportButton.addEventListener('click', () => {
       render();

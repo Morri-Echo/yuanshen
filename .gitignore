@@ -12,6 +12,7 @@ outputs/edge-profile-temp/
 .agents/
 .codex/
 docs/superpowers/
+.worktrees/
 
 # Operating-system and editor files
 .DS_Store

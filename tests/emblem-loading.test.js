@@ -44,18 +44,31 @@ function createElement(initial = {}) {
 
 function createDrawingContext(drawCalls, onRender) {
   const gradient = () => ({ addColorStop() {} });
-  return {
+  const stateStack = [];
+  const context = {
+    filter: 'none',
+    globalCompositeOperation: 'source-over',
     clearRect() {
       onRender();
     },
     drawImage(...args) {
-      drawCalls.push(args);
+      const call = [...args];
+      call.filter = this.filter;
+      call.globalCompositeOperation = this.globalCompositeOperation;
+      drawCalls.push(call);
     },
     fillRect() {},
     createLinearGradient: gradient,
     createRadialGradient: gradient,
-    save() {},
-    restore() {},
+    save() {
+      stateStack.push({
+        filter: this.filter,
+        globalCompositeOperation: this.globalCompositeOperation,
+      });
+    },
+    restore() {
+      Object.assign(this, stateStack.pop() || {});
+    },
     beginPath() {},
     arc() {},
     fill() {},
@@ -69,6 +82,7 @@ function createDrawingContext(drawCalls, onRender) {
       return { width: String(text).length * 10 };
     },
   };
+  return context;
 }
 
 function scheduleTicks(count, callback) {
@@ -309,6 +323,22 @@ test('every canonical emblem key draws its exact asset path', async () => {
       `${key} should draw ${src}`
     );
   }
+});
+
+test('selected emblem is drawn with a pale luminous screen effect', async () => {
+  const harness = createHarness({ search: '?testImage=query.png&emblem=mengdei' });
+  await harness.flush();
+
+  assert.ok(
+    harness.drawCalls.some((call) =>
+      call[0]?.src === 'assets/mengdei.png' &&
+      call.filter.includes('brightness(') &&
+      call.filter.includes('saturate(') &&
+      call.filter.includes('drop-shadow(') &&
+      call.globalCompositeOperation === 'screen'
+    ),
+    'the selected emblem should have a bright pale core and visible glow'
+  );
 });
 
 test('every failed emblem reports its exact label while other assets remain usable', async () => {

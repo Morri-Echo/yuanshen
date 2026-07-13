@@ -73,7 +73,19 @@ select {
 
 select {
   padding: 8px 10px;
+  background-color: #25282e;
+  color: #fff8e8;
   color-scheme: dark;
+}
+
+select option {
+  background-color: #1d2026;
+  color: #fff8e8;
+}
+
+select option:checked {
+  background-color: #c9b07a;
+  color: #17140e;
 }
 
 input[type="text"] {

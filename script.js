@@ -122,7 +122,7 @@
     } = layout;
 
     drawEmblemGlow(cx, emblemY, emblemSize);
-    drawCenteredAsset(overlayAssets.emblems[state.emblem], cx, emblemY, null, emblemSize * 1.16, 0.98);
+    drawLuminousEmblem(overlayAssets.emblems[state.emblem], cx, emblemY, emblemSize * 1.16);
     drawTextLine(state.line1, cx, line1Y, line1Size, 700, '#ded0bb', 0.95, width * 0.42);
     drawTextLine(state.line2, cx, line2Y, line2Size, 850, '#fff8ed', 1, width * 0.47);
     drawOrnamentDivider(cx, dividerY, dividerWidth, height);
@@ -143,6 +143,20 @@
     ctx.arc(cx, cy, size * 0.96, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
+  }
+
+  function drawLuminousEmblem(asset, cx, cy, height) {
+    if (!asset) {
+      return;
+    }
+    drawCenteredAsset(asset, cx, cy, null, height, 0.34, {
+      filter: 'brightness(2) saturate(0.2) blur(5px)',
+      compositeOperation: 'screen',
+    });
+    drawCenteredAsset(asset, cx, cy, null, height, 1, {
+      filter: 'brightness(1.65) saturate(0.42) contrast(1.05) drop-shadow(0 0 12px rgba(255, 235, 184, 0.76))',
+      compositeOperation: 'screen',
+    });
   }
 
   function drawOrnamentDivider(cx, cy, width, height) {
@@ -284,6 +298,7 @@
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.filter = options.filter || 'none';
+    ctx.globalCompositeOperation = options.compositeOperation || 'source-over';
     ctx.drawImage(
       source,
       bounds.x,

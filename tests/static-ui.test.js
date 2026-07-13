@@ -4,6 +4,7 @@ const path = require('node:path');
 
 const html = fs.readFileSync(path.resolve(__dirname, '..', 'index.html'), 'utf8');
 const script = fs.readFileSync(path.resolve(__dirname, '..', 'script.js'), 'utf8');
+const styles = fs.readFileSync(path.resolve(__dirname, '..', 'styles.css'), 'utf8');
 
 const expectedEmblemOptions = [
   ['mengdei', '蒙德'],
@@ -46,6 +47,12 @@ assert.ok(
   'emblemSelect should appear after overlayOpacityInput and before exportButton'
 );
 
+assert.match(
+  styles,
+  /select option\s*\{[^}]*background(?:-color)?\s*:\s*#[0-9a-f]{6}[^}]*color\s*:\s*#fff8e8[^}]*\}/isu,
+  'native select options should use a dark background with readable light text'
+);
+
 assert.equal(
   script.includes("fillText('上传图片后在这里预览'"),
   false,
@@ -83,8 +90,8 @@ assert.match(
 
 assert.match(
   script,
-  /drawCenteredAsset\(\s*overlayAssets\.emblems\[state\.emblem\]/u,
-  'the center overlay should draw the emblem selected in render state'
+  /drawLuminousEmblem\(\s*overlayAssets\.emblems\[state\.emblem\]/u,
+  'the center overlay should draw the selected emblem with the luminous treatment'
 );
 
 assert.match(

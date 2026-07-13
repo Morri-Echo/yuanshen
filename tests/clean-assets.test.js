@@ -4,6 +4,12 @@ const path = require('node:path');
 
 const pngAssets = [
   'mengdei.png',
+  'liyue.png',
+  'daoqi.png',
+  'xuni.png',
+  'fengdan.png',
+  'nata.png',
+  'nuodekalai.png',
   'weiwandaixu-clean.png',
 ];
 

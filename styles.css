@@ -60,7 +60,8 @@ body {
 }
 
 input[type="text"],
-input[type="file"] {
+input[type="file"],
+select {
   width: 100%;
   min-height: 40px;
   border: 1px solid rgba(240, 220, 170, 0.18);
@@ -68,6 +69,11 @@ input[type="file"] {
   background: rgba(255, 255, 255, 0.07);
   color: #fff8e8;
   font: inherit;
+}
+
+select {
+  padding: 8px 10px;
+  color-scheme: dark;
 }
 
 input[type="text"] {

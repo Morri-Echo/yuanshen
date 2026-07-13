@@ -2,7 +2,46 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
+const html = fs.readFileSync(path.resolve(__dirname, '..', 'index.html'), 'utf8');
 const script = fs.readFileSync(path.resolve(__dirname, '..', 'script.js'), 'utf8');
+
+const expectedEmblemOptions = [
+  ['mengdei', '蒙德'],
+  ['liyue', '璃月'],
+  ['daoqi', '稻妻'],
+  ['xuni', '须弥'],
+  ['fengdan', '枫丹'],
+  ['nata', '纳塔'],
+  ['nuodekalai', '空月之歌'],
+];
+
+assert.match(
+  html,
+  /<span>选择大图标<\/span>\s*<select id="emblemSelect">/u,
+  'the emblem selector should immediately follow its label'
+);
+
+const emblemSelectMarkup = html.match(/<select id="emblemSelect">([\s\S]*?)<\/select>/u);
+assert.ok(emblemSelectMarkup, 'emblemSelect should exist');
+
+const actualEmblemOptions = [...emblemSelectMarkup[1].matchAll(
+  /<option value="([^"]+)">([^<]+)<\/option>/gu
+)].map((match) => [match[1], match[2]]);
+
+assert.deepEqual(
+  actualEmblemOptions,
+  expectedEmblemOptions,
+  'emblem options should match the expected values, labels, and order'
+);
+
+const opacityInputPosition = html.indexOf('id="overlayOpacityInput"');
+const emblemSelectPosition = html.indexOf('id="emblemSelect"');
+const exportButtonPosition = html.indexOf('id="exportButton"');
+
+assert.ok(
+  opacityInputPosition < emblemSelectPosition && emblemSelectPosition < exportButtonPosition,
+  'emblemSelect should appear after overlayOpacityInput and before exportButton'
+);
 
 assert.equal(
   script.includes("fillText('上传图片后在这里预览'"),

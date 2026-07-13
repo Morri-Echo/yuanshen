@@ -27,6 +27,12 @@
     continuation: null,
   };
   let uploadedImage = null;
+  let activityMessage = statusText.textContent;
+  let assetWarning = '';
+
+  function updateStatusText() {
+    statusText.textContent = [activityMessage, assetWarning].filter(Boolean).join(' ');
+  }
 
   function currentMode() {
     return document.querySelector('input[name="sizeMode"]:checked')?.value || DEFAULTS.mode;
@@ -361,6 +367,7 @@
         try {
           const image = await loadImage(src);
           overlayAssets.emblems[key] = { image, bounds: getVisibleBounds(image) };
+          render();
         } catch {
           failedKeys.add(key);
           const option = emblemSelect.querySelector(`option[value="${key}"]`);
@@ -377,13 +384,16 @@
     }
 
     if (availableKeys.length === 0) {
-      statusText.textContent = '大图标全部加载失败，请检查 assets 目录。';
+      assetWarning = '大图标全部加载失败，请检查 assets 目录。';
     } else if (failedKeys.size > 0) {
       const failedLabels = EMBLEM_KEYS
         .filter((key) => failedKeys.has(key))
         .map((key) => EMBLEM_ASSETS[key].label);
-      statusText.textContent = `以下大图标加载失败：${failedLabels.join('、')}。`;
+      assetWarning = `以下大图标加载失败：${failedLabels.join('、')}。`;
+    } else {
+      assetWarning = '';
     }
+    updateStatusText();
   }
 
   async function loadOverlayAssets() {
@@ -396,20 +406,23 @@
   function getVisibleBounds(image) {
     const width = image.naturalWidth || image.width;
     const height = image.naturalHeight || image.height;
+    const scanScale = Math.min(1, 512 / Math.max(width, height));
+    const scanWidth = Math.max(1, Math.round(width * scanScale));
+    const scanHeight = Math.max(1, Math.round(height * scanScale));
     const scratch = document.createElement('canvas');
-    scratch.width = width;
-    scratch.height = height;
+    scratch.width = scanWidth;
+    scratch.height = scanHeight;
     const scratchCtx = scratch.getContext('2d', { willReadFrequently: true });
-    scratchCtx.drawImage(image, 0, 0);
-    const data = scratchCtx.getImageData(0, 0, width, height).data;
-    let minX = width;
-    let minY = height;
+    scratchCtx.drawImage(image, 0, 0, scanWidth, scanHeight);
+    const data = scratchCtx.getImageData(0, 0, scanWidth, scanHeight).data;
+    let minX = scanWidth;
+    let minY = scanHeight;
     let maxX = -1;
     let maxY = -1;
 
-    for (let y = 0; y < height; y += 1) {
-      for (let x = 0; x < width; x += 1) {
-        const alpha = data[(y * width + x) * 4 + 3];
+    for (let y = 0; y < scanHeight; y += 1) {
+      for (let x = 0; x < scanWidth; x += 1) {
+        const alpha = data[(y * scanWidth + x) * 4 + 3];
         if (alpha > 8) {
           minX = Math.min(minX, x);
           minY = Math.min(minY, y);
@@ -423,20 +436,27 @@
       return { x: 0, y: 0, width, height };
     }
 
+    const scaleX = width / scanWidth;
+    const scaleY = height / scanHeight;
+    const sourceMinX = Math.floor(minX * scaleX);
+    const sourceMinY = Math.floor(minY * scaleY);
+    const sourceMaxX = Math.ceil((maxX + 1) * scaleX);
+    const sourceMaxY = Math.ceil((maxY + 1) * scaleY);
     const padding = Math.ceil(Math.min(width, height) * 0.012);
-    const x = Math.max(0, minX - padding);
-    const y = Math.max(0, minY - padding);
+    const x = Math.max(0, sourceMinX - padding);
+    const y = Math.max(0, sourceMinY - padding);
     return {
       x,
       y,
-      width: Math.min(width, maxX + padding + 1) - x,
-      height: Math.min(height, maxY + padding + 1) - y,
+      width: Math.min(width, sourceMaxX + padding) - x,
+      height: Math.min(height, sourceMaxY + padding) - y,
     };
   }
 
   function setUploadedImage(image, name) {
     uploadedImage = image;
-    statusText.textContent = `已加载 ${name}，可以导出图片。`;
+    activityMessage = `已加载 ${name}，可以导出图片。`;
+    updateStatusText();
     exportButton.disabled = false;
     render();
   }
@@ -445,7 +465,8 @@
     loadImage(src)
       .then((image) => setUploadedImage(image, name))
       .catch(() => {
-        statusText.textContent = '图片读取失败，请换一张图片重试。';
+        activityMessage = '图片读取失败，请换一张图片重试。';
+        updateStatusText();
       });
   }
 
@@ -502,7 +523,8 @@
       render();
       canvas.toBlob((blob) => {
         if (!blob) {
-          statusText.textContent = '导出失败，请重试。';
+          activityMessage = '导出失败，请重试。';
+          updateStatusText();
           return;
         }
         const link = document.createElement('a');
@@ -510,7 +532,8 @@
         link.download = 'task-overlay.png';
         link.click();
         URL.revokeObjectURL(link.href);
-        statusText.textContent = '已生成并下载 task-overlay.png。';
+        activityMessage = '已生成并下载 task-overlay.png。';
+        updateStatusText();
       }, 'image/png');
     });
   }
@@ -518,7 +541,8 @@
   exportButton.disabled = true;
   bindEvents();
   loadOverlayAssets().catch(() => {
-    statusText.textContent = '固定素材加载失败，请检查 assets 目录。';
+    assetWarning = '固定素材加载失败，请检查 assets 目录。';
+    updateStatusText();
   });
   loadTestImageFromQuery();
   render();

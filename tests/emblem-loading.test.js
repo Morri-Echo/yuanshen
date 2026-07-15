@@ -7,13 +7,13 @@ const root = path.resolve(__dirname, '..');
 const coreSource = fs.readFileSync(path.join(root, 'renderer-core.js'), 'utf8');
 const scriptSource = fs.readFileSync(path.join(root, 'script.js'), 'utf8');
 const emblemCases = [
-  { key: 'mengdei', label: '蒙德', src: 'assets/mengdei.png' },
-  { key: 'liyue', label: '璃月', src: 'assets/liyue.png' },
-  { key: 'daoqi', label: '稻妻', src: 'assets/daoqi.png' },
-  { key: 'xuni', label: '须弥', src: 'assets/xuni.png' },
-  { key: 'fengdan', label: '枫丹', src: 'assets/fengdan.png' },
-  { key: 'nata', label: '纳塔', src: 'assets/nata.png' },
-  { key: 'nuodekalai', label: '空月之歌', src: 'assets/nuodekalai.png' },
+  { key: 'mengdei', label: '蒙德', src: 'assets/mengdei.png', previewSrc: 'assets/preview/mengdei.png' },
+  { key: 'liyue', label: '璃月', src: 'assets/liyue.png', previewSrc: 'assets/preview/liyue.png' },
+  { key: 'daoqi', label: '稻妻', src: 'assets/daoqi.png', previewSrc: 'assets/preview/daoqi.png' },
+  { key: 'xuni', label: '须弥', src: 'assets/xuni.png', previewSrc: 'assets/preview/xuni.png' },
+  { key: 'fengdan', label: '枫丹', src: 'assets/fengdan.png', previewSrc: 'assets/preview/fengdan.png' },
+  { key: 'nata', label: '纳塔', src: 'assets/nata.png', previewSrc: 'assets/preview/nata.png' },
+  { key: 'nuodekalai', label: '空月之歌', src: 'assets/nuodekalai.png', previewSrc: 'assets/preview/nuodekalai.png' },
 ];
 const emblemKeys = emblemCases.map(({ key }) => key);
 
@@ -309,6 +309,7 @@ function createHarness(options = {}) {
     elements,
     optionsByKey,
     scratchCanvases,
+    objectUrls,
     get renderCount() {
       return renderCount;
     },
@@ -332,15 +333,15 @@ function test(name, callback) {
   tests.push([name, callback]);
 }
 
-test('every canonical emblem key draws its exact asset path', async () => {
-  for (const { key, src } of emblemCases) {
+test('every canonical emblem key previews from its small asset path', async () => {
+  for (const { key, previewSrc } of emblemCases) {
     const harness = createHarness({ search: `?testImage=query.png&emblem=${key}` });
     await harness.flush();
 
     assert.equal(harness.elements.emblemSelect.value, key);
     assert.ok(
-      harness.maskDrawCalls.some(([source]) => source?.src === src),
-      `${key} should draw ${src} into the gold emblem mask`
+      harness.maskDrawCalls.some(([source]) => source?.src === previewSrc),
+      `${key} should draw ${previewSrc} into the preview gold emblem mask`
     );
   }
 });
@@ -350,8 +351,8 @@ test('selected emblem is drawn with an ivory body, gold edge, and soft gold glow
   await harness.flush();
 
   assert.ok(
-    harness.maskDrawCalls.filter(([source]) => source?.src === 'assets/mengdei.png').length >= 2,
-    'the selected emblem asset should feed both the blurred backlight and crisp body masks'
+    harness.maskDrawCalls.filter(([source]) => source?.src === 'assets/preview/mengdei.png').length >= 2,
+    'the selected preview emblem asset should feed both the blurred backlight and crisp body masks'
   );
   assert.ok(
     harness.drawCalls.some((call) =>
@@ -371,12 +372,28 @@ test('selected emblem is drawn with an ivory body, gold edge, and soft gold glow
   );
 });
 
-test('every failed emblem reports its exact label while other assets remain usable', async () => {
-  for (const { key, label, src } of emblemCases) {
+test('preview renders from small assets while high-res emblems are still loading', async () => {
+  const heldSources = emblemCases.map(({ src }) => src);
+  const harness = createHarness({ heldSources });
+  await harness.flush(4);
+
+  assert.ok(
+    harness.maskDrawCalls.some(([source]) => source?.src === 'assets/preview/mengdei.png'),
+    'the default preview emblem should render from the small preview PNG'
+  );
+  assert.equal(
+    harness.maskDrawCalls.some(([source]) => source?.src === 'assets/mengdei.png'),
+    false,
+    'preview rendering should not require the high-res emblem'
+  );
+});
+
+test('every failed preview emblem reports its exact label while other assets remain usable', async () => {
+  for (const { key, label, previewSrc } of emblemCases) {
     const harness = createHarness({
       initialEmblem: key,
-      failedSources: [src],
-      delayTicks: { 'assets/mengdei.png': 3 },
+      failedSources: [previewSrc],
+      delayTicks: { 'assets/preview/mengdei.png': 3 },
     });
     await harness.flush();
 
@@ -392,7 +409,7 @@ test('every failed emblem reports its exact label while other assets remain usab
     const expectedFallback = key === 'mengdei' ? 'liyue' : 'mengdei';
     const fallbackSource = emblemCases.find(
       ({ key: candidate }) => candidate === expectedFallback
-    ).src;
+    ).previewSrc;
     assert.equal(harness.elements.emblemSelect.value, expectedFallback);
     if (key === 'mengdei') {
       assert.equal(
@@ -413,7 +430,7 @@ test('every failed emblem reports its exact label while other assets remain usab
 });
 
 test('asset warning remains visible after upload and export activity', async () => {
-  const harness = createHarness({ failedSources: ['assets/xuni.png'] });
+  const harness = createHarness({ failedSources: ['assets/preview/xuni.png'] });
   await harness.flush();
 
   harness.elements.imageInput.files = [{ name: 'later.png' }];
@@ -427,6 +444,49 @@ test('asset warning remains visible after upload and export activity', async () 
   assert.match(harness.elements.statusText.textContent, /须弥/u);
 });
 
+test('export waits when the selected high-res emblem is still loading', async () => {
+  const harness = createHarness({
+    heldSources: ['assets/mengdei.png'],
+  });
+  await harness.flush();
+
+  harness.elements.imageInput.files = [{ name: 'later.png' }];
+  harness.elements.imageInput.dispatch('change');
+  await harness.flush();
+  harness.objectUrls.length = 0;
+  harness.elements.exportButton.dispatch('click');
+
+  assert.equal(
+    harness.objectUrls.includes('blob:export'),
+    false,
+    'export should not create a download while the selected high-res emblem is still pending'
+  );
+  assert.match(harness.elements.statusText.textContent, /高清/u);
+
+  harness.release('assets/mengdei.png');
+  await harness.flush();
+});
+
+test('export uses the selected high-res emblem after it loads', async () => {
+  const harness = createHarness({ search: '?testImage=query.png&emblem=liyue' });
+  await harness.flush();
+
+  harness.elements.imageInput.files = [{ name: 'later.png' }];
+  harness.elements.imageInput.dispatch('change');
+  await harness.flush();
+  harness.drawCalls.length = 0;
+  harness.elements.exportButton.dispatch('click');
+
+  assert.ok(
+    harness.drawCalls.some(([source]) => source?.src === 'assets/liyue.png'),
+    'export rendering should use the high-res selected emblem'
+  );
+  assert.ok(
+    harness.objectUrls.includes('blob:export'),
+    'export should create a download when the high-res emblem is ready'
+  );
+});
+
 test('selection changes draw the selected asset and query selects nata', async () => {
   const harness = createHarness({ search: '?testImage=query.png&emblem=nata' });
   assert.equal(harness.elements.emblemSelect.value, 'nata');
@@ -436,7 +496,7 @@ test('selection changes draw the selected asset and query selects nata', async (
   harness.elements.emblemSelect.value = 'liyue';
   harness.elements.emblemSelect.dispatch('change');
   assert.ok(
-    harness.maskDrawCalls.some(([source]) => source?.src === 'assets/liyue.png'),
+    harness.maskDrawCalls.some(([source]) => source?.src === 'assets/preview/liyue.png'),
     'changing the selection should draw the Liyue emblem'
   );
 });
@@ -449,7 +509,7 @@ test('a loaded default emblem renders before the slowest emblem finishes', async
   await harness.flush(4);
 
   assert.ok(
-    harness.maskDrawCalls.some(([source]) => source?.src === 'assets/mengdei.png'),
+    harness.maskDrawCalls.some(([source]) => source?.src === 'assets/preview/mengdei.png'),
     'the default emblem should render while other loads are still pending'
   );
 
@@ -466,7 +526,7 @@ test('default emblem renders before the continuation asset finishes loading', as
   await harness.flush(4);
 
   assert.ok(
-    harness.maskDrawCalls.some(([source]) => source?.src === 'assets/mengdei.png'),
+    harness.maskDrawCalls.some(([source]) => source?.src === 'assets/preview/mengdei.png'),
     'the default emblem should render while the fixed bottom asset is still pending'
   );
 
@@ -475,13 +535,19 @@ test('default emblem renders before the continuation asset finishes loading', as
 });
 
 test('unrelated successful emblem loads do not render the full canvas', async () => {
-  const heldSources = emblemKeys
+  const heldPreviewSources = emblemKeys
+    .filter((key) => key !== 'mengdei')
+    .map((key) => `assets/preview/${key}.png`);
+  const heldHighResSources = emblemKeys
     .filter((key) => key !== 'liyue')
     .map((key) => `assets/${key}.png`);
   const harness = createHarness({
-    heldSources: [...heldSources, 'assets/weiwandaixu-clean.png'],
+    heldSources: [...heldPreviewSources, ...heldHighResSources, 'assets/weiwandaixu-clean.png'],
   });
+  await harness.flush(4);
   const initialRenderCount = harness.renderCount;
+
+  harness.release(heldPreviewSources[0]);
   await harness.flush(4);
 
   assert.equal(
@@ -490,7 +556,7 @@ test('unrelated successful emblem loads do not render the full canvas', async ()
     'loading an unselected emblem should not render the full canvas'
   );
 
-  for (const source of heldSources) {
+  for (const source of [...heldPreviewSources.slice(1), ...heldHighResSources]) {
     harness.release(source);
   }
   await harness.flush();
@@ -514,7 +580,7 @@ test('large visible-bound scans are downsampled and map back to source bounds', 
   }
 
   const emblemDraw = harness.maskDrawCalls.find(
-    ([source]) => source?.src === 'assets/mengdei.png'
+    ([source]) => source?.src === 'assets/preview/mengdei.png'
   );
   assert.ok(emblemDraw, 'the large emblem should still draw');
   assert.ok(emblemDraw[1] > 0 && emblemDraw[2] > 0, 'transparent edges should be cropped');
@@ -523,12 +589,12 @@ test('large visible-bound scans are downsampled and map back to source bounds', 
 
 test('fully transparent images safely fall back to full source bounds', async () => {
   const harness = createHarness({
-    alphaModes: { 'assets/mengdei.png': 'transparent' },
+    alphaModes: { 'assets/preview/mengdei.png': 'transparent' },
   });
   await harness.flush();
 
   const emblemDraw = harness.maskDrawCalls.find(
-    ([source]) => source?.src === 'assets/mengdei.png'
+    ([source]) => source?.src === 'assets/preview/mengdei.png'
   );
   assert.deepEqual(emblemDraw.slice(1, 5), [0, 0, 64, 64]);
 });
@@ -544,7 +610,7 @@ test('visible-bound scan failure keeps emblems enabled and drawable on mobile', 
   assert.equal(harness.optionsByKey.mengdei.disabled, false);
   assert.equal(harness.elements.emblemSelect.value, 'mengdei');
   assert.ok(
-    harness.maskDrawCalls.some(([source]) => source?.src === 'assets/mengdei.png'),
+    harness.maskDrawCalls.some(([source]) => source?.src === 'assets/preview/mengdei.png'),
     'the selected emblem should still feed the emblem drawing pipeline'
   );
 });
@@ -556,7 +622,7 @@ test('selected emblem draws the original PNG as a mobile-safe fallback', async (
   await harness.flush();
 
   assert.ok(
-    harness.drawCalls.some(([source]) => source?.src === 'assets/liyue.png'),
+    harness.drawCalls.some(([source]) => source?.src === 'assets/preview/liyue.png'),
     'the selected emblem should be drawn directly before enhanced mask effects'
   );
 });
@@ -577,7 +643,7 @@ test('mask draw failure does not abort the rest of the overlay rendering', async
   });
 
   assert.ok(
-    harness.drawCalls.some(([source]) => source?.src === 'assets/nata.png'),
+    harness.drawCalls.some(([source]) => source?.src === 'assets/preview/nata.png'),
     'the original emblem should still reach the main canvas when enhanced masks fail'
   );
   assert.ok(

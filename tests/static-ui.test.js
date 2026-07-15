@@ -96,6 +96,23 @@ for (const assetPath of expectedEmblemAssetPaths) {
   );
 }
 
+const expectedPreviewEmblemAssetPaths = [
+  'assets/preview/mengdei.png',
+  'assets/preview/liyue.png',
+  'assets/preview/daoqi.png',
+  'assets/preview/xuni.png',
+  'assets/preview/fengdan.png',
+  'assets/preview/nata.png',
+  'assets/preview/nuodekalai.png',
+];
+
+for (const assetPath of expectedPreviewEmblemAssetPaths) {
+  assert.ok(
+    script.includes(assetPath),
+    `script should load the preview emblem asset ${assetPath}`
+  );
+}
+
 assert.match(
   script,
   /emblemSelect\.addEventListener\(\s*['"]change['"]\s*,\s*render\s*\)/u,
@@ -104,7 +121,7 @@ assert.match(
 
 assert.match(
   script,
-  /drawLuminousEmblem\(\s*overlayAssets\.emblems\[state\.emblem\]/u,
+  /drawLuminousEmblem\(\s*emblems\[state\.emblem\]/u,
   'the center overlay should draw the selected emblem with the luminous treatment'
 );
 

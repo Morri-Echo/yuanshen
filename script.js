@@ -8,6 +8,15 @@
     nata: { label: '纳塔', src: 'assets/nata.png' },
     nuodekalai: { label: '空月之歌', src: 'assets/nuodekalai.png' },
   });
+  const PREVIEW_EMBLEM_ASSETS = Object.freeze({
+    mengdei: { label: '蒙德', src: 'assets/preview/mengdei.png' },
+    liyue: { label: '璃月', src: 'assets/preview/liyue.png' },
+    daoqi: { label: '稻妻', src: 'assets/preview/daoqi.png' },
+    xuni: { label: '须弥', src: 'assets/preview/xuni.png' },
+    fengdan: { label: '枫丹', src: 'assets/preview/fengdan.png' },
+    nata: { label: '纳塔', src: 'assets/preview/nata.png' },
+    nuodekalai: { label: '空月之歌', src: 'assets/preview/nuodekalai.png' },
+  });
   const CONTINUATION_PATH = 'assets/weiwandaixu-clean.png';
 
   const imageInput = document.getElementById('imageInput');
@@ -24,7 +33,8 @@
   const ctx = canvas.getContext('2d');
 
   const overlayAssets = {
-    emblems: {},
+    previewEmblems: {},
+    highResEmblems: {},
     continuation: null,
   };
   let uploadedImage = null;
@@ -60,8 +70,9 @@
     }
   }
 
-  function render() {
+  function render(options = {}) {
     const state = currentState();
+    const emblems = options.emblems || overlayAssets.previewEmblems;
     resizeCanvas(state);
     const width = canvas.width;
     const height = canvas.height;
@@ -77,7 +88,7 @@
     ctx.fillStyle = hexToRgba(state.overlayColor, state.overlayOpacity);
     ctx.fillRect(0, 0, width, height);
     drawVignette(width, height);
-    drawCenterOverlay(state, width, height);
+    drawCenterOverlay(state, width, height, emblems);
   }
 
   function drawPlaceholder(width, height) {
@@ -104,7 +115,7 @@
     ctx.fillRect(0, 0, width, height);
   }
 
-  function drawCenterOverlay(state, width, height) {
+  function drawCenterOverlay(state, width, height, emblems) {
     const layout = getOverlayLayout(width, height);
     const {
       cx,
@@ -126,7 +137,7 @@
     } = layout;
 
     drawEmblemGlow(cx, emblemY, emblemSize);
-    drawLuminousEmblem(overlayAssets.emblems[state.emblem], cx, emblemY, emblemSize * 1.16);
+    drawLuminousEmblem(emblems[state.emblem], cx, emblemY, emblemSize * 1.16);
     drawTextLine(state.line1, cx, line1Y, line1Size, 700, '#ded0bb', 0.95, width * 0.42);
     drawTextLine(state.line2, cx, line2Y, line2Size, 850, '#fff8ed', 1, width * 0.47);
     drawOrnamentDivider(cx, dividerY, dividerWidth, height);
@@ -490,8 +501,9 @@
     });
   }
 
-  async function loadSingleEmblemAsset(key, failedKeys) {
-    const { src } = EMBLEM_ASSETS[key];
+  async function loadSingleEmblemAsset(key, failedKeys, sourceMap, targetMap, options = {}) {
+    const { disableOnFailure = true, renderSelected = true } = options;
+    const { src } = sourceMap[key];
     let image;
     let bounds;
     try {
@@ -499,31 +511,33 @@
       bounds = getVisibleBounds(image);
     } catch {
       failedKeys.add(key);
-      const option = emblemSelect.querySelector(`option[value="${key}"]`);
-      if (option) {
-        option.disabled = true;
+      if (disableOnFailure) {
+        const option = emblemSelect.querySelector(`option[value="${key}"]`);
+        if (option) {
+          option.disabled = true;
+        }
       }
       return;
     }
 
-    overlayAssets.emblems[key] = { image, bounds };
-    if (emblemSelect.value === key) {
+    targetMap[key] = { image, bounds };
+    if (renderSelected && emblemSelect.value === key) {
       render();
     }
   }
 
-  async function loadEmblemAssets(priorityKey = emblemSelect.value) {
+  async function loadPreviewEmblemAssets(priorityKey = emblemSelect.value) {
     const failedKeys = new Set();
     const firstKey = normalizeEmblem(priorityKey);
-    await loadSingleEmblemAsset(firstKey, failedKeys);
+    await loadSingleEmblemAsset(firstKey, failedKeys, PREVIEW_EMBLEM_ASSETS, overlayAssets.previewEmblems);
 
     await Promise.all(
       EMBLEM_KEYS
         .filter((key) => key !== firstKey)
-        .map((key) => loadSingleEmblemAsset(key, failedKeys))
+        .map((key) => loadSingleEmblemAsset(key, failedKeys, PREVIEW_EMBLEM_ASSETS, overlayAssets.previewEmblems))
     );
 
-    const availableKeys = EMBLEM_KEYS.filter((key) => overlayAssets.emblems[key]);
+    const availableKeys = EMBLEM_KEYS.filter((key) => overlayAssets.previewEmblems[key]);
     if (availableKeys.length > 0 && !availableKeys.includes(emblemSelect.value)) {
       emblemSelect.value = availableKeys[0];
       render();
@@ -534,12 +548,30 @@
     } else if (failedKeys.size > 0) {
       const failedLabels = EMBLEM_KEYS
         .filter((key) => failedKeys.has(key))
-        .map((key) => EMBLEM_ASSETS[key].label);
+        .map((key) => PREVIEW_EMBLEM_ASSETS[key].label);
       assetWarning = `以下大图标加载失败：${failedLabels.join('、')}。`;
     } else {
       assetWarning = '';
     }
     updateStatusText();
+  }
+
+  async function loadHighResEmblemAssets(priorityKey = emblemSelect.value) {
+    const failedKeys = new Set();
+    const firstKey = normalizeEmblem(priorityKey);
+    await loadSingleEmblemAsset(firstKey, failedKeys, EMBLEM_ASSETS, overlayAssets.highResEmblems, {
+      disableOnFailure: false,
+      renderSelected: false,
+    });
+
+    await Promise.all(
+      EMBLEM_KEYS
+        .filter((key) => key !== firstKey)
+        .map((key) => loadSingleEmblemAsset(key, failedKeys, EMBLEM_ASSETS, overlayAssets.highResEmblems, {
+          disableOnFailure: false,
+          renderSelected: false,
+        }))
+    );
   }
 
   async function loadContinuationAsset() {
@@ -553,7 +585,8 @@
       assetWarning = '固定素材加载失败，请检查 assets 目录。';
       updateStatusText();
     });
-    await loadEmblemAssets(emblemSelect.value);
+    loadHighResEmblemAssets(emblemSelect.value);
+    await loadPreviewEmblemAssets(emblemSelect.value);
     render();
     await continuationLoad;
   }
@@ -639,6 +672,36 @@
       });
   }
 
+  function selectedHighResEmblemReady() {
+    return Boolean(overlayAssets.highResEmblems[currentState().emblem]);
+  }
+
+  function exportHighResImage() {
+    if (!selectedHighResEmblemReady()) {
+      activityMessage = '高清大图标仍在加载，请稍等后再导出。';
+      updateStatusText();
+      return;
+    }
+
+    render({ emblems: overlayAssets.highResEmblems });
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        activityMessage = '导出失败，请重试。';
+        updateStatusText();
+        render();
+        return;
+      }
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'task-overlay.png';
+      link.click();
+      URL.revokeObjectURL(link.href);
+      activityMessage = '已生成并下载 task-overlay.png。';
+      updateStatusText();
+      render();
+    }, 'image/png');
+  }
+
   function loadTestImageFromQuery() {
     const params = new URLSearchParams(window.location.search);
     if (params.get('capture') === '1') {
@@ -688,23 +751,7 @@
 
     emblemSelect.addEventListener('change', render);
 
-    exportButton.addEventListener('click', () => {
-      render();
-      canvas.toBlob((blob) => {
-        if (!blob) {
-          activityMessage = '导出失败，请重试。';
-          updateStatusText();
-          return;
-        }
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = 'task-overlay.png';
-        link.click();
-        URL.revokeObjectURL(link.href);
-        activityMessage = '已生成并下载 task-overlay.png。';
-        updateStatusText();
-      }, 'image/png');
-    });
+    exportButton.addEventListener('click', exportHighResImage);
   }
 
   exportButton.disabled = true;

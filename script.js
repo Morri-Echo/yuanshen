@@ -153,17 +153,29 @@
     if (!asset) {
       return;
     }
+    drawPlainEmblemFallback(asset, cx, cy, height);
     drawEmblemBacklight(asset, cx, cy, null, height);
     drawGoldEmblemMask(asset, cx, cy, null, height);
   }
 
+  function drawPlainEmblemFallback(asset, cx, cy, height) {
+    drawCenteredAsset(asset, cx, cy, null, height, 0.72, {
+      compositeOperation: 'screen',
+    });
+  }
+
   function drawEmblemBacklight(asset, cx, cy, targetWidth, targetHeight) {
     const metrics = getAssetDrawMetrics(asset, cx, cy, targetWidth, targetHeight);
-    const layer = createEmblemMaskLayer(metrics, [
-      [0, 'rgba(255, 239, 198, 0.78)'],
-      [0.46, 'rgba(224, 183, 96, 0.72)'],
-      [1, 'rgba(161, 112, 42, 0.18)'],
-    ]);
+    let layer;
+    try {
+      layer = createEmblemMaskLayer(metrics, [
+        [0, 'rgba(255, 239, 198, 0.78)'],
+        [0.46, 'rgba(224, 183, 96, 0.72)'],
+        [1, 'rgba(161, 112, 42, 0.18)'],
+      ]);
+    } catch {
+      return;
+    }
     if (!layer) {
       return;
     }
@@ -178,13 +190,18 @@
 
   function drawGoldEmblemMask(asset, cx, cy, targetWidth, targetHeight) {
     const metrics = getAssetDrawMetrics(asset, cx, cy, targetWidth, targetHeight);
-    const layer = createEmblemMaskLayer(metrics, [
-      [0, '#FFF2C8'],
-      [0.42, '#F8E7B8'],
-      [0.82, '#E8CB8A'],
-      [0.96, '#C9A96E'],
-      [1, '#8A672E'],
-    ]);
+    let layer;
+    try {
+      layer = createEmblemMaskLayer(metrics, [
+        [0, '#FFF2C8'],
+        [0.42, '#F8E7B8'],
+        [0.82, '#E8CB8A'],
+        [0.96, '#C9A96E'],
+        [1, '#8A672E'],
+      ]);
+    } catch {
+      return;
+    }
     if (!layer) {
       return;
     }
@@ -525,6 +542,15 @@
     render();
   }
 
+  function getFullImageBounds(image) {
+    return {
+      x: 0,
+      y: 0,
+      width: image.naturalWidth || image.width,
+      height: image.naturalHeight || image.height,
+    };
+  }
+
   function getVisibleBounds(image) {
     const width = image.naturalWidth || image.width;
     const height = image.naturalHeight || image.height;
@@ -535,8 +561,13 @@
     scratch.width = scanWidth;
     scratch.height = scanHeight;
     const scratchCtx = scratch.getContext('2d', { willReadFrequently: true });
-    scratchCtx.drawImage(image, 0, 0, scanWidth, scanHeight);
-    const data = scratchCtx.getImageData(0, 0, scanWidth, scanHeight).data;
+    let data;
+    try {
+      scratchCtx.drawImage(image, 0, 0, scanWidth, scanHeight);
+      data = scratchCtx.getImageData(0, 0, scanWidth, scanHeight).data;
+    } catch {
+      return getFullImageBounds(image);
+    }
     let minX = scanWidth;
     let minY = scanHeight;
     let maxX = -1;

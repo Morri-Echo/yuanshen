@@ -171,6 +171,9 @@ function createHarness(options = {}) {
             const [image] = args;
             source = image;
             if (args.length >= 9) {
+              if (options.throwOnMaskDraw) {
+                throw new Error('simulated mobile mask draw failure');
+              }
               const call = [...args];
               call.filter = this.filter;
               call.globalCompositeOperation = this.globalCompositeOperation;
@@ -180,6 +183,9 @@ function createHarness(options = {}) {
           fillRect() {},
           createRadialGradient: gradient,
           getImageData(x, y, scanWidth, scanHeight) {
+            if (options.throwOnGetImageData) {
+              throw new Error('simulated mobile getImageData failure');
+            }
             assert.ok(
               scanWidth <= 512 && scanHeight <= 512,
               `visible-bound scan requested ${scanWidth}x${scanHeight}`
@@ -508,6 +514,59 @@ test('fully transparent images safely fall back to full source bounds', async ()
     ([source]) => source?.src === 'assets/mengdei.png'
   );
   assert.deepEqual(emblemDraw.slice(1, 5), [0, 0, 64, 64]);
+});
+
+test('visible-bound scan failure keeps emblems enabled and drawable on mobile', async () => {
+  const harness = createHarness({
+    throwOnGetImageData: true,
+    largeEmblems: true,
+    search: '?testImage=query.png&emblem=mengdei',
+  });
+  await harness.flush(20);
+
+  assert.equal(harness.optionsByKey.mengdei.disabled, false);
+  assert.equal(harness.elements.emblemSelect.value, 'mengdei');
+  assert.ok(
+    harness.maskDrawCalls.some(([source]) => source?.src === 'assets/mengdei.png'),
+    'the selected emblem should still feed the emblem drawing pipeline'
+  );
+});
+
+test('selected emblem draws the original PNG as a mobile-safe fallback', async () => {
+  const harness = createHarness({
+    search: '?testImage=query.png&emblem=liyue',
+  });
+  await harness.flush();
+
+  assert.ok(
+    harness.drawCalls.some(([source]) => source?.src === 'assets/liyue.png'),
+    'the selected emblem should be drawn directly before enhanced mask effects'
+  );
+});
+
+test('mask draw failure does not abort the rest of the overlay rendering', async () => {
+  const options = {
+    throwOnMaskDraw: false,
+    search: '?testImage=query.png&emblem=nata',
+  };
+  const harness = createHarness(options);
+  await harness.flush();
+
+  harness.drawCalls.length = 0;
+  options.throwOnMaskDraw = true;
+  harness.elements.emblemSelect.value = 'nata';
+  assert.doesNotThrow(() => {
+    harness.elements.emblemSelect.dispatch('change');
+  });
+
+  assert.ok(
+    harness.drawCalls.some(([source]) => source?.src === 'assets/nata.png'),
+    'the original emblem should still reach the main canvas when enhanced masks fail'
+  );
+  assert.ok(
+    harness.drawCalls.some(([source]) => source?.src === 'assets/weiwandaixu-clean.png'),
+    'the fixed bottom asset should still draw after an enhanced mask failure'
+  );
 });
 
 (async () => {

@@ -41,6 +41,8 @@ const exportButtonPosition = html.indexOf('id="exportButton"');
 assert.ok(opacityInputPosition >= 0, 'overlayOpacityInput should exist');
 assert.ok(emblemSelectPosition >= 0, 'emblemSelect should exist');
 assert.ok(exportButtonPosition >= 0, 'exportButton should exist');
+assert.ok(html.includes('class="preview-toolbar"'), 'preview should include a toolbar');
+assert.ok(html.includes('id="canvasSize"'), 'preview should expose the current canvas size');
 
 assert.ok(
   opacityInputPosition < emblemSelectPosition && emblemSelectPosition < exportButtonPosition,
@@ -51,6 +53,18 @@ assert.match(
   styles,
   /select option\s*\{[^}]*background(?:-color)?\s*:\s*#[0-9a-f]{6}[^}]*color\s*:\s*#fff8e8[^}]*\}/isu,
   'native select options should use a dark background with readable light text'
+);
+
+assert.match(
+  styles,
+  /body\.capture-mode \.control-panel,\s*body\.capture-mode \.preview-toolbar\s*\{[^}]*display\s*:\s*none/u,
+  'capture mode should hide editor chrome and the preview toolbar for GitHub Pages screenshots'
+);
+
+assert.match(
+  script,
+  /canvasSize\.textContent\s*=\s*`\$\{size\.width\} x \$\{size\.height\}`/u,
+  'the preview size label should stay in sync with the rendered canvas size'
 );
 
 assert.equal(

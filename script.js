@@ -19,6 +19,7 @@
   const emblemSelect = document.getElementById('emblemSelect');
   const exportButton = document.getElementById('exportButton');
   const statusText = document.getElementById('statusText');
+  const canvasSize = document.getElementById('canvasSize');
   const canvas = document.getElementById('previewCanvas');
   const ctx = canvas.getContext('2d');
 
@@ -54,6 +55,9 @@
     canvas.width = size.width;
     canvas.height = size.height;
     canvas.style.aspectRatio = `${size.width} / ${size.height}`;
+    if (canvasSize) {
+      canvasSize.textContent = `${size.width} x ${size.height}`;
+    }
   }
 
   function render() {

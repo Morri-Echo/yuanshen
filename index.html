@@ -10,65 +10,83 @@
     <main class="app-shell">
       <section class="control-panel" aria-label="图片生成设置">
         <div class="brand">
+          <span class="brand-kicker">Overlay Studio</span>
           <h1>任务完成图片生成器</h1>
         </div>
 
-        <label class="field">
-          <span>上传图片</span>
-          <input id="imageInput" type="file" accept="image/*">
-        </label>
-
-        <label class="field">
-          <span>第 1 行文字</span>
-          <input id="line1Input" type="text" value="序章 第一幕 完成">
-        </label>
-
-        <label class="field">
-          <span>第 2 行文字</span>
-          <input id="line2Input" type="text" value="捕风的异乡人">
-        </label>
-
-        <fieldset class="field radio-group">
-          <legend>输出尺寸</legend>
-          <label>
-            <input type="radio" name="sizeMode" value="16:9" checked>
-            <span>16:9</span>
+        <div class="panel-section">
+          <label class="field upload-field">
+            <span>上传图片</span>
+            <input id="imageInput" type="file" accept="image/*">
           </label>
-          <label>
-            <input type="radio" name="sizeMode" value="source">
-            <span>跟随上传图片比例</span>
+
+          <label class="field">
+            <span>第 1 行文字</span>
+            <input id="line1Input" type="text" value="序章 第一幕 完成">
           </label>
-        </fieldset>
 
-        <label class="field compact-field">
-          <span>遮罩颜色</span>
-          <input id="overlayColorInput" type="color" value="#12151f">
-        </label>
+          <label class="field">
+            <span>第 2 行文字</span>
+            <input id="line2Input" type="text" value="捕风的异乡人">
+          </label>
+        </div>
 
-        <label class="field">
-          <span>遮罩透明度 <strong id="opacityValue">62%</strong></span>
-          <input id="overlayOpacityInput" type="range" min="0" max="1" step="0.01" value="0.62">
-        </label>
+        <div class="panel-section">
+          <fieldset class="field radio-group">
+            <legend>输出尺寸</legend>
+            <div class="segmented-options">
+              <label>
+                <input type="radio" name="sizeMode" value="16:9" checked>
+                <span>16:9</span>
+              </label>
+              <label>
+                <input type="radio" name="sizeMode" value="source">
+                <span>原图比例</span>
+              </label>
+            </div>
+          </fieldset>
 
-        <label class="field">
-          <span>选择大图标</span>
-          <select id="emblemSelect">
-            <option value="mengdei">蒙德</option>
-            <option value="liyue">璃月</option>
-            <option value="daoqi">稻妻</option>
-            <option value="xuni">须弥</option>
-            <option value="fengdan">枫丹</option>
-            <option value="nata">纳塔</option>
-            <option value="nuodekalai">空月之歌</option>
-          </select>
-        </label>
+          <div class="inline-fields">
+            <label class="field compact-field">
+              <span>遮罩颜色</span>
+              <input id="overlayColorInput" type="color" value="#12151f">
+            </label>
+          </div>
+
+          <label class="field range-field">
+            <span>遮罩透明度 <strong id="opacityValue">62%</strong></span>
+            <input id="overlayOpacityInput" type="range" min="0" max="1" step="0.01" value="0.62">
+          </label>
+
+          <label class="field">
+            <span>选择大图标</span>
+            <select id="emblemSelect">
+              <option value="mengdei">蒙德</option>
+              <option value="liyue">璃月</option>
+              <option value="daoqi">稻妻</option>
+              <option value="xuni">须弥</option>
+              <option value="fengdan">枫丹</option>
+              <option value="nata">纳塔</option>
+              <option value="nuodekalai">空月之歌</option>
+            </select>
+          </label>
+        </div>
 
         <button id="exportButton" class="primary-button" type="button">导出图片</button>
         <p id="statusText" class="status-text">上传图片后可导出生成结果。</p>
       </section>
 
       <section class="preview-panel" aria-label="图片预览">
-        <canvas id="previewCanvas" width="1920" height="1080"></canvas>
+        <div class="preview-toolbar">
+          <div>
+            <span class="preview-label">Preview</span>
+            <h2>实时预览</h2>
+          </div>
+          <span id="canvasSize" class="canvas-size">1920 x 1080</span>
+        </div>
+        <div class="canvas-stage">
+          <canvas id="previewCanvas" width="1920" height="1080"></canvas>
+        </div>
       </section>
     </main>
 

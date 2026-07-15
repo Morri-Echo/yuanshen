@@ -148,4 +148,40 @@ assert.equal(
   'the main renderer should add a clean synthetic glow behind the emblem'
 );
 
+assert.match(
+  script,
+  /drawGoldEmblemMask/u,
+  'the selected emblem should be recolored through a gold mask instead of remaining white'
+);
+
+assert.match(
+  script,
+  /#FFF2C8/u,
+  'the emblem body should use a warm ivory highlight instead of a saturated gold fill'
+);
+
+assert.match(
+  script,
+  /#F8E7B8/u,
+  'the emblem body should keep a pale gold-white midtone like the reference'
+);
+
+assert.match(
+  script,
+  /#C9A96E/u,
+  'dark gold should remain available for the emblem edge and glow color'
+);
+
+assert.match(
+  script,
+  /rgba\(201,\s*169,\s*110,\s*0\.6\)/u,
+  'the emblem glow should use the requested soft gold drop-shadow color'
+);
+
+assert.match(
+  script,
+  /drawEmblemBacklight/u,
+  'the emblem should use a separate blurred backlight layer behind the crisp body'
+);
+
 console.log('PASS static UI checks');

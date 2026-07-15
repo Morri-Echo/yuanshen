@@ -95,6 +95,7 @@ function scheduleTicks(count, callback) {
 
 function createHarness(options = {}) {
   const drawCalls = [];
+  const maskDrawCalls = [];
   const scratchCanvases = [];
   const failedSources = new Set(options.failedSources || []);
   const heldSources = new Set(options.heldSources || []);
@@ -148,6 +149,7 @@ function createHarness(options = {}) {
     let width = 0;
     let height = 0;
     let source = null;
+    const gradient = () => ({ addColorStop() {} });
     const scratch = {
       get width() {
         return width;
@@ -163,9 +165,20 @@ function createHarness(options = {}) {
       },
       getContext() {
         return {
-          drawImage(image) {
+          filter: 'none',
+          globalCompositeOperation: 'source-over',
+          drawImage(...args) {
+            const [image] = args;
             source = image;
+            if (args.length >= 9) {
+              const call = [...args];
+              call.filter = this.filter;
+              call.globalCompositeOperation = this.globalCompositeOperation;
+              maskDrawCalls.push(call);
+            }
           },
+          fillRect() {},
+          createRadialGradient: gradient,
           getImageData(x, y, scanWidth, scanHeight) {
             assert.ok(
               scanWidth <= 512 && scanHeight <= 512,
@@ -286,6 +299,7 @@ function createHarness(options = {}) {
 
   return {
     drawCalls,
+    maskDrawCalls,
     elements,
     optionsByKey,
     scratchCanvases,
@@ -319,25 +333,35 @@ test('every canonical emblem key draws its exact asset path', async () => {
 
     assert.equal(harness.elements.emblemSelect.value, key);
     assert.ok(
-      harness.drawCalls.some(([source]) => source?.src === src),
-      `${key} should draw ${src}`
+      harness.maskDrawCalls.some(([source]) => source?.src === src),
+      `${key} should draw ${src} into the gold emblem mask`
     );
   }
 });
 
-test('selected emblem is drawn with a pale luminous screen effect', async () => {
+test('selected emblem is drawn with an ivory body, gold edge, and soft gold glow', async () => {
   const harness = createHarness({ search: '?testImage=query.png&emblem=mengdei' });
   await harness.flush();
 
   assert.ok(
+    harness.maskDrawCalls.filter(([source]) => source?.src === 'assets/mengdei.png').length >= 2,
+    'the selected emblem asset should feed both the blurred backlight and crisp body masks'
+  );
+  assert.ok(
     harness.drawCalls.some((call) =>
-      call[0]?.src === 'assets/mengdei.png' &&
-      call.filter.includes('brightness(') &&
-      call.filter.includes('saturate(') &&
-      call.filter.includes('drop-shadow(') &&
+      !call[0]?.src &&
+      call.filter === 'blur(4px)' &&
       call.globalCompositeOperation === 'screen'
     ),
-    'the selected emblem should have a bright pale core and visible glow'
+    'the selected emblem should have a separate soft backlight layer'
+  );
+  assert.ok(
+    harness.drawCalls.some((call) =>
+      !call[0]?.src &&
+      call.filter === 'drop-shadow(0 0 10px rgba(201, 169, 110, 0.6))' &&
+      call.globalCompositeOperation === 'source-over'
+    ),
+    'the selected emblem should keep a tight requested soft gold drop-shadow on the crisp body'
   );
 });
 
@@ -372,7 +396,7 @@ test('every failed emblem reports its exact label while other assets remain usab
       );
     }
     assert.ok(
-      harness.drawCalls.some(([source]) => source?.src === fallbackSource),
+      harness.maskDrawCalls.some(([source]) => source?.src === fallbackSource),
       `${expectedFallback} should remain drawable when ${key} fails`
     );
     assert.ok(
@@ -406,7 +430,7 @@ test('selection changes draw the selected asset and query selects nata', async (
   harness.elements.emblemSelect.value = 'liyue';
   harness.elements.emblemSelect.dispatch('change');
   assert.ok(
-    harness.drawCalls.some(([source]) => source?.src === 'assets/liyue.png'),
+    harness.maskDrawCalls.some(([source]) => source?.src === 'assets/liyue.png'),
     'changing the selection should draw the Liyue emblem'
   );
 });
@@ -419,7 +443,7 @@ test('a loaded default emblem renders before the slowest emblem finishes', async
   await harness.flush(4);
 
   assert.ok(
-    harness.drawCalls.some(([source]) => source?.src === 'assets/mengdei.png'),
+    harness.maskDrawCalls.some(([source]) => source?.src === 'assets/mengdei.png'),
     'the default emblem should render while other loads are still pending'
   );
 
@@ -466,7 +490,7 @@ test('large visible-bound scans are downsampled and map back to source bounds', 
     assert.ok(scratch.height <= 512, `scratch height was ${scratch.height}`);
   }
 
-  const emblemDraw = harness.drawCalls.find(
+  const emblemDraw = harness.maskDrawCalls.find(
     ([source]) => source?.src === 'assets/mengdei.png'
   );
   assert.ok(emblemDraw, 'the large emblem should still draw');
@@ -480,7 +504,7 @@ test('fully transparent images safely fall back to full source bounds', async ()
   });
   await harness.flush();
 
-  const emblemDraw = harness.drawCalls.find(
+  const emblemDraw = harness.maskDrawCalls.find(
     ([source]) => source?.src === 'assets/mengdei.png'
   );
   assert.deepEqual(emblemDraw.slice(1, 5), [0, 0, 64, 64]);

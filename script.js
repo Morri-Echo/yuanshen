@@ -134,13 +134,13 @@
 
   function drawEmblemGlow(cx, cy, size) {
     ctx.save();
-    const glow = ctx.createRadialGradient(cx, cy, size * 0.12, cx, cy, size * 0.95);
-    glow.addColorStop(0, 'rgba(255, 232, 148, 0.42)');
-    glow.addColorStop(0.42, 'rgba(223, 145, 56, 0.2)');
-    glow.addColorStop(1, 'rgba(223, 145, 56, 0)');
+    const glow = ctx.createRadialGradient(cx, cy, size * 0.08, cx, cy, size * 0.76);
+    glow.addColorStop(0, 'rgba(255, 229, 170, 0.3)');
+    glow.addColorStop(0.42, 'rgba(201, 169, 110, 0.18)');
+    glow.addColorStop(1, 'rgba(201, 169, 110, 0)');
     ctx.fillStyle = glow;
     ctx.beginPath();
-    ctx.arc(cx, cy, size * 0.96, 0, Math.PI * 2);
+    ctx.arc(cx, cy, size * 0.78, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
@@ -149,14 +149,95 @@
     if (!asset) {
       return;
     }
-    drawCenteredAsset(asset, cx, cy, null, height, 0.34, {
-      filter: 'brightness(2) saturate(0.2) blur(5px)',
-      compositeOperation: 'screen',
-    });
-    drawCenteredAsset(asset, cx, cy, null, height, 1, {
-      filter: 'brightness(1.65) saturate(0.42) contrast(1.05) drop-shadow(0 0 12px rgba(255, 235, 184, 0.76))',
-      compositeOperation: 'screen',
-    });
+    drawEmblemBacklight(asset, cx, cy, null, height);
+    drawGoldEmblemMask(asset, cx, cy, null, height);
+  }
+
+  function drawEmblemBacklight(asset, cx, cy, targetWidth, targetHeight) {
+    const metrics = getAssetDrawMetrics(asset, cx, cy, targetWidth, targetHeight);
+    const layer = createEmblemMaskLayer(metrics, [
+      [0, 'rgba(255, 239, 198, 0.78)'],
+      [0.46, 'rgba(224, 183, 96, 0.72)'],
+      [1, 'rgba(161, 112, 42, 0.18)'],
+    ]);
+    if (!layer) {
+      return;
+    }
+
+    ctx.save();
+    ctx.globalAlpha = 0.78;
+    ctx.filter = 'blur(4px)';
+    ctx.globalCompositeOperation = 'screen';
+    ctx.drawImage(layer.canvas, cx - layer.width / 2, cy - layer.height / 2);
+    ctx.restore();
+  }
+
+  function drawGoldEmblemMask(asset, cx, cy, targetWidth, targetHeight) {
+    const metrics = getAssetDrawMetrics(asset, cx, cy, targetWidth, targetHeight);
+    const layer = createEmblemMaskLayer(metrics, [
+      [0, '#FFF2C8'],
+      [0.42, '#F8E7B8'],
+      [0.82, '#E8CB8A'],
+      [0.96, '#C9A96E'],
+      [1, '#8A672E'],
+    ]);
+    if (!layer) {
+      return;
+    }
+
+    ctx.save();
+    ctx.filter = 'drop-shadow(0 0 10px rgba(201, 169, 110, 0.6))';
+    ctx.drawImage(layer.canvas, cx - layer.width / 2, cy - layer.height / 2);
+    ctx.restore();
+  }
+
+  function createEmblemMaskLayer(metrics, colorStops) {
+    if (!metrics) {
+      return null;
+    }
+    const padding = Math.max(18, Math.max(metrics.drawWidth, metrics.drawHeight) * 0.18);
+    const layerWidth = Math.ceil(metrics.drawWidth + padding * 2);
+    const layerHeight = Math.ceil(metrics.drawHeight + padding * 2);
+    const layer = document.createElement('canvas');
+    layer.width = layerWidth;
+    layer.height = layerHeight;
+
+    const layerCtx = layer.getContext('2d');
+    const offsetX = (layerWidth - metrics.drawWidth) / 2;
+    const offsetY = (layerHeight - metrics.drawHeight) / 2;
+    layerCtx.drawImage(
+      metrics.source,
+      metrics.bounds.x,
+      metrics.bounds.y,
+      metrics.bounds.width,
+      metrics.bounds.height,
+      offsetX,
+      offsetY,
+      metrics.drawWidth,
+      metrics.drawHeight
+    );
+
+    layerCtx.globalCompositeOperation = 'source-in';
+    const radius = Math.max(metrics.drawWidth, metrics.drawHeight) * 0.62;
+    const gradient = layerCtx.createRadialGradient(
+      layerWidth * 0.5,
+      layerHeight * 0.38,
+      radius * 0.05,
+      layerWidth * 0.5,
+      layerHeight * 0.52,
+      radius
+    );
+    for (const [offset, color] of colorStops) {
+      gradient.addColorStop(offset, color);
+    }
+    layerCtx.fillStyle = gradient;
+    layerCtx.fillRect(0, 0, layerWidth, layerHeight);
+
+    return {
+      canvas: layer,
+      width: layerWidth,
+      height: layerHeight,
+    };
   }
 
   function drawOrnamentDivider(cx, cy, width, height) {
@@ -282,8 +363,31 @@
   }
 
   function drawCenteredAsset(asset, cx, cy, targetWidth, targetHeight, alpha, options = {}) {
-    if (!asset) {
+    const metrics = getAssetDrawMetrics(asset, cx, cy, targetWidth, targetHeight);
+    if (!metrics) {
       return;
+    }
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.filter = options.filter || 'none';
+    ctx.globalCompositeOperation = options.compositeOperation || 'source-over';
+    ctx.drawImage(
+      metrics.source,
+      metrics.bounds.x,
+      metrics.bounds.y,
+      metrics.bounds.width,
+      metrics.bounds.height,
+      metrics.x,
+      metrics.y,
+      metrics.drawWidth,
+      metrics.drawHeight
+    );
+    ctx.restore();
+  }
+
+  function getAssetDrawMetrics(asset, cx, cy, targetWidth, targetHeight) {
+    if (!asset) {
+      return null;
     }
     const source = asset.image;
     const bounds = asset.bounds || {
@@ -295,22 +399,14 @@
     const aspect = bounds.width / bounds.height;
     const drawWidth = targetWidth || targetHeight * aspect;
     const drawHeight = targetHeight || targetWidth / aspect;
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.filter = options.filter || 'none';
-    ctx.globalCompositeOperation = options.compositeOperation || 'source-over';
-    ctx.drawImage(
+    return {
       source,
-      bounds.x,
-      bounds.y,
-      bounds.width,
-      bounds.height,
-      cx - drawWidth / 2,
-      cy - drawHeight / 2,
+      bounds,
+      x: cx - drawWidth / 2,
+      y: cy - drawHeight / 2,
       drawWidth,
-      drawHeight
-    );
-    ctx.restore();
+      drawHeight,
+    };
   }
 
   function drawTextLine(text, x, y, size, weight, color, alpha, maxWidth) {

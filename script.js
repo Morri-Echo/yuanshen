@@ -490,36 +490,43 @@
     });
   }
 
-  async function loadEmblemAssets() {
+  async function loadSingleEmblemAsset(key, failedKeys) {
+    const { src } = EMBLEM_ASSETS[key];
+    let image;
+    let bounds;
+    try {
+      image = await loadImage(src);
+      bounds = getVisibleBounds(image);
+    } catch {
+      failedKeys.add(key);
+      const option = emblemSelect.querySelector(`option[value="${key}"]`);
+      if (option) {
+        option.disabled = true;
+      }
+      return;
+    }
+
+    overlayAssets.emblems[key] = { image, bounds };
+    if (emblemSelect.value === key) {
+      render();
+    }
+  }
+
+  async function loadEmblemAssets(priorityKey = emblemSelect.value) {
     const failedKeys = new Set();
+    const firstKey = normalizeEmblem(priorityKey);
+    await loadSingleEmblemAsset(firstKey, failedKeys);
 
     await Promise.all(
-      EMBLEM_KEYS.map(async (key) => {
-        const { src } = EMBLEM_ASSETS[key];
-        let image;
-        let bounds;
-        try {
-          image = await loadImage(src);
-          bounds = getVisibleBounds(image);
-        } catch {
-          failedKeys.add(key);
-          const option = emblemSelect.querySelector(`option[value="${key}"]`);
-          if (option) {
-            option.disabled = true;
-          }
-          return;
-        }
-
-        overlayAssets.emblems[key] = { image, bounds };
-        if (emblemSelect.value === key) {
-          render();
-        }
-      })
+      EMBLEM_KEYS
+        .filter((key) => key !== firstKey)
+        .map((key) => loadSingleEmblemAsset(key, failedKeys))
     );
 
     const availableKeys = EMBLEM_KEYS.filter((key) => overlayAssets.emblems[key]);
     if (availableKeys.length > 0 && !availableKeys.includes(emblemSelect.value)) {
       emblemSelect.value = availableKeys[0];
+      render();
     }
 
     if (availableKeys.length === 0) {
@@ -535,11 +542,20 @@
     updateStatusText();
   }
 
-  async function loadOverlayAssets() {
+  async function loadContinuationAsset() {
     const image = await loadImage(CONTINUATION_PATH);
     overlayAssets.continuation = { image, bounds: getVisibleBounds(image) };
-    await loadEmblemAssets();
     render();
+  }
+
+  async function loadOverlayAssets() {
+    const continuationLoad = loadContinuationAsset().catch(() => {
+      assetWarning = '固定素材加载失败，请检查 assets 目录。';
+      updateStatusText();
+    });
+    await loadEmblemAssets(emblemSelect.value);
+    render();
+    await continuationLoad;
   }
 
   function getFullImageBounds(image) {

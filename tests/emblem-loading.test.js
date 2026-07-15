@@ -459,11 +459,28 @@ test('a loaded default emblem renders before the slowest emblem finishes', async
   await harness.flush();
 });
 
+test('default emblem renders before the continuation asset finishes loading', async () => {
+  const harness = createHarness({
+    heldSources: ['assets/weiwandaixu-clean.png'],
+  });
+  await harness.flush(4);
+
+  assert.ok(
+    harness.maskDrawCalls.some(([source]) => source?.src === 'assets/mengdei.png'),
+    'the default emblem should render while the fixed bottom asset is still pending'
+  );
+
+  harness.release('assets/weiwandaixu-clean.png');
+  await harness.flush();
+});
+
 test('unrelated successful emblem loads do not render the full canvas', async () => {
   const heldSources = emblemKeys
     .filter((key) => key !== 'liyue')
     .map((key) => `assets/${key}.png`);
-  const harness = createHarness({ heldSources });
+  const harness = createHarness({
+    heldSources: [...heldSources, 'assets/weiwandaixu-clean.png'],
+  });
   const initialRenderCount = harness.renderCount;
   await harness.flush(4);
 

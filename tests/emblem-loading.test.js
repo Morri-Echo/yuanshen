@@ -450,6 +450,9 @@ test('export waits when the selected high-res emblem is still loading', async ()
   });
   await harness.flush();
 
+  assert.match(harness.elements.statusText.textContent, /高清大图标加载中/u);
+  assert.match(harness.elements.statusText.textContent, /预计/u);
+
   harness.elements.imageInput.files = [{ name: 'later.png' }];
   harness.elements.imageInput.dispatch('change');
   await harness.flush();

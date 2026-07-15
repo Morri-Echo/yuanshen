@@ -40,9 +40,47 @@
   let uploadedImage = null;
   let activityMessage = statusText.textContent;
   let assetWarning = '';
+  let highResMessage = '';
 
   function updateStatusText() {
-    statusText.textContent = [activityMessage, assetWarning].filter(Boolean).join(' ');
+    statusText.textContent = [activityMessage, highResMessage, assetWarning].filter(Boolean).join(' ');
+  }
+
+  const highResLoadState = {
+    active: false,
+    startedAt: 0,
+    total: EMBLEM_KEYS.length,
+    completed: 0,
+    failed: 0,
+  };
+
+  function estimateHighResRemainingSeconds() {
+    const remaining = Math.max(0, highResLoadState.total - highResLoadState.completed);
+    if (remaining === 0) {
+      return 0;
+    }
+    const elapsedSeconds = Math.max(0.5, (Date.now() - highResLoadState.startedAt) / 1000);
+    const finished = highResLoadState.completed + highResLoadState.failed;
+    if (finished === 0) {
+      return Math.max(2, remaining * 2);
+    }
+    return Math.max(1, Math.ceil((elapsedSeconds / finished) * remaining));
+  }
+
+  function updateHighResMessage() {
+    if (!highResLoadState.active) {
+      highResMessage = '';
+      updateStatusText();
+      return;
+    }
+    if (highResLoadState.completed >= highResLoadState.total) {
+      highResMessage = '高清大图标已加载完成，可导出高清图。';
+      updateStatusText();
+      return;
+    }
+    const remainingSeconds = estimateHighResRemainingSeconds();
+    highResMessage = `高清大图标加载中：${highResLoadState.completed}/${highResLoadState.total}，预计约 ${remainingSeconds} 秒内完成。`;
+    updateStatusText();
   }
 
   function currentMode() {
@@ -559,18 +597,32 @@
   async function loadHighResEmblemAssets(priorityKey = emblemSelect.value) {
     const failedKeys = new Set();
     const firstKey = normalizeEmblem(priorityKey);
-    await loadSingleEmblemAsset(firstKey, failedKeys, EMBLEM_ASSETS, overlayAssets.highResEmblems, {
-      disableOnFailure: false,
-      renderSelected: false,
-    });
+    highResLoadState.active = true;
+    highResLoadState.startedAt = Date.now();
+    highResLoadState.completed = 0;
+    highResLoadState.failed = 0;
+    updateHighResMessage();
+
+    async function loadTrackedHighResEmblem(key) {
+      const beforeLoaded = Boolean(overlayAssets.highResEmblems[key]);
+      await loadSingleEmblemAsset(key, failedKeys, EMBLEM_ASSETS, overlayAssets.highResEmblems, {
+        disableOnFailure: false,
+        renderSelected: false,
+      });
+      if (overlayAssets.highResEmblems[key] && !beforeLoaded) {
+        highResLoadState.completed += 1;
+      } else if (!overlayAssets.highResEmblems[key]) {
+        highResLoadState.failed += 1;
+      }
+      updateHighResMessage();
+    }
+
+    await loadTrackedHighResEmblem(firstKey);
 
     await Promise.all(
       EMBLEM_KEYS
         .filter((key) => key !== firstKey)
-        .map((key) => loadSingleEmblemAsset(key, failedKeys, EMBLEM_ASSETS, overlayAssets.highResEmblems, {
-          disableOnFailure: false,
-          renderSelected: false,
-        }))
+        .map((key) => loadTrackedHighResEmblem(key))
     );
   }
 

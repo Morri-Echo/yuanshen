@@ -3,7 +3,12 @@ const {
   DEFAULTS,
   EMBLEM_KEYS,
   clampOpacity,
+  clampProgress,
   createRenderState,
+  getAnimatedOverlayState,
+  getMediaDimensions,
+  getTimelineProgress,
+  getVideoExportSettings,
   getOverlayLayout,
   getCanvasSize,
   getCoverRect,
@@ -31,6 +36,17 @@ test('source mode follows uploaded image dimensions', () => {
   assert.deepEqual(getCanvasSize('source', { width: 1200, height: 800 }), {
     width: 1200,
     height: 800,
+  });
+});
+
+test('source mode follows uploaded video dimensions', () => {
+  assert.deepEqual(getMediaDimensions({ videoWidth: 1280, videoHeight: 720 }), {
+    width: 1280,
+    height: 720,
+  });
+  assert.deepEqual(getCanvasSize('source', { videoWidth: 1280, videoHeight: 720 }), {
+    width: 1280,
+    height: 720,
   });
 });
 
@@ -99,6 +115,99 @@ test('opacity is clamped between 0 and 1', () => {
   assert.equal(clampOpacity(-0.1), 0);
   assert.equal(clampOpacity(0.4), 0.4);
   assert.equal(clampOpacity(2), 1);
+});
+
+test('animation progress is clamped between 0 and 1', () => {
+  assert.equal(clampProgress(-0.2), 0);
+  assert.equal(clampProgress(0.4), 0.4);
+  assert.equal(clampProgress(2), 1);
+  assert.equal(clampProgress(Number.NaN), 0);
+});
+
+test('video export settings use a short shareable 1080p timeline', () => {
+  assert.deepEqual(getVideoExportSettings(), {
+    durationMs: 3200,
+    fps: 30,
+    bitrate: 8_000_000,
+    mp4Codec: 'avc1.42002A',
+    mp4FileName: 'task-overlay-video.mp4',
+    webmMimeType: 'video/webm;codecs=vp9',
+    webmFileName: 'task-overlay-video.webm',
+  });
+});
+
+test('animated overlay brings title elements in together before task text', () => {
+  const settings = getVideoExportSettings();
+  const at300ms = getAnimatedOverlayState(300 / settings.durationMs);
+  assert.ok(at300ms.emblemAlpha > 0.75);
+  assert.ok(at300ms.line1Alpha > 0.75);
+  assert.ok(at300ms.line2Alpha > 0.75);
+  assert.ok(at300ms.dividerProgress > 0.75);
+  assert.equal(at300ms.taskBandProgress, 0);
+  assert.equal(at300ms.continuationAlpha, 0);
+
+  const at800ms = getAnimatedOverlayState(800 / settings.durationMs);
+  assert.ok(at800ms.emblemAlpha > 0.98);
+  assert.ok(at800ms.line1Alpha > 0.98);
+  assert.ok(at800ms.line2Alpha > 0.98);
+  assert.ok(at800ms.dividerProgress > 0.98);
+  assert.ok(at800ms.taskBandProgress > 0.65);
+  assert.ok(at800ms.continuationAlpha > 0.65);
+});
+
+test('animated overlay starts hidden and ends matching the still layout', () => {
+  const start = getAnimatedOverlayState(0);
+  assert.equal(start.overlayAlpha, 0);
+  assert.equal(start.emblemAlpha, 0);
+  assert.equal(start.line1Alpha, 0);
+  assert.equal(start.line2Alpha, 0);
+  assert.equal(start.dividerProgress, 0);
+  assert.equal(start.taskBandProgress, 0);
+  assert.equal(start.continuationAlpha, 0);
+
+  const end = getAnimatedOverlayState(1);
+  assert.equal(end.overlayAlpha, 1);
+  assert.equal(end.emblemAlpha, 1);
+  assert.equal(end.line1Alpha, 1);
+  assert.equal(end.line2Alpha, 1);
+  assert.equal(end.dividerProgress, 1);
+  assert.equal(end.taskBandProgress, 1);
+  assert.equal(end.continuationAlpha, 1);
+  assert.equal(end.emblemScale, 1);
+  assert.equal(end.line2Scale, 1);
+});
+
+test('animated overlay delays task complete and continuation by about half a second', () => {
+  const settings = getVideoExportSettings();
+  const beforeTask = getAnimatedOverlayState(480 / settings.durationMs);
+  assert.ok(beforeTask.emblemAlpha > 0.95);
+  assert.ok(beforeTask.line1Alpha > 0.95);
+  assert.ok(beforeTask.line2Alpha > 0.95);
+  assert.ok(beforeTask.dividerProgress > 0.95);
+  assert.equal(beforeTask.taskBandProgress, 0);
+  assert.equal(beforeTask.continuationAlpha, 0);
+
+  const afterTask = getAnimatedOverlayState(720 / settings.durationMs);
+  assert.ok(afterTask.taskBandProgress > 0.2);
+  assert.ok(afterTask.continuationAlpha > 0.2);
+
+  const middle = getAnimatedOverlayState(0.28);
+  assert.ok(middle.overlayAlpha > 0.9);
+  assert.ok(middle.emblemAlpha > 0.8);
+  assert.ok(middle.line2Alpha > 0.75);
+  assert.ok(middle.dividerProgress > 0.75);
+  assert.ok(middle.taskBandProgress > 0.65);
+  assert.ok(middle.continuationAlpha > 0.65);
+});
+
+test('image exports animate from the beginning while video exports animate at the end', () => {
+  const settings = getVideoExportSettings();
+  assert.equal(getTimelineProgress(0, settings.durationMs, 'image'), 0);
+  assert.equal(getTimelineProgress(1600, settings.durationMs, 'image'), 0.5);
+  assert.equal(getTimelineProgress(0, 10_000, 'video'), 0);
+  assert.equal(getTimelineProgress(6000, 10_000, 'video'), 0);
+  assert.ok(getTimelineProgress(7200, 10_000, 'video') > 0);
+  assert.equal(getTimelineProgress(10_000, 10_000, 'video'), 1);
 });
 
 test('overlay layout keeps the first two text lines separated', () => {

@@ -81,3 +81,19 @@ node tests\edge-smoke.js
 代码的使用、修改与分发遵循仓库中的 [LICENSE](LICENSE)。
 
 仓库内包含来源于或参考第三方作品的图片、名称、视觉元素及商标。公开使用、再分发或用于商业场景前，请自行确认素材授权与适用规则。
+
+## Video export notes
+
+The page can run as a pure static GitHub Pages site. Image upload, animation preview,
+and export all run in the visitor's browser.
+
+- PNG export keeps the existing still-image layout.
+- Uploads can be images or videos. Video uploads are rendered frame-by-frame with
+  the same overlay animation near the end of the source video and exported without
+  the source audio track.
+- Video export renders the same canvas layout as an animation and first tries to
+  download `task-overlay-video.mp4`.
+- MP4 export uses the browser WebCodecs API plus an MP4 muxer loaded from CDN at
+  export time. Users do not install anything manually.
+- If MP4 export is unavailable in the browser or the CDN cannot be loaded, the page
+  falls back to `task-overlay-video.webm`.

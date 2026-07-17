@@ -16,8 +16,8 @@
 
         <div class="panel-section">
           <label class="field upload-field">
-            <span>上传图片</span>
-            <input id="imageInput" type="file" accept="image/*">
+            <span>上传图片或视频</span>
+            <input id="imageInput" type="file" accept="image/*,video/*">
           </label>
 
           <label class="field">
@@ -70,8 +70,23 @@
               <option value="nuodekalai">空月之歌</option>
             </select>
           </label>
+
+          <fieldset class="field radio-group export-mode-group">
+            <legend>导出格式</legend>
+            <div class="segmented-options">
+              <label>
+                <input type="radio" name="exportMode" value="image" checked>
+                <span>图片 PNG</span>
+              </label>
+              <label>
+                <input type="radio" name="exportMode" value="video">
+                <span>动画视频 MP4</span>
+              </label>
+            </div>
+          </fieldset>
         </div>
 
+        <button id="previewAnimationButton" class="secondary-button" type="button">预览动画</button>
         <button id="exportButton" class="primary-button" type="button">导出图片</button>
         <p id="statusText" class="status-text">上传图片后可导出生成结果。</p>
       </section>

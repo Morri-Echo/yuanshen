@@ -26,21 +26,25 @@
   const overlayOpacityInput = document.getElementById('overlayOpacityInput');
   const opacityValue = document.getElementById('opacityValue');
   const emblemSelect = document.getElementById('emblemSelect');
+  const previewAnimationButton = document.getElementById('previewAnimationButton');
   const exportButton = document.getElementById('exportButton');
   const statusText = document.getElementById('statusText');
   const canvasSize = document.getElementById('canvasSize');
   const canvas = document.getElementById('previewCanvas');
   const ctx = canvas.getContext('2d');
+  const videoSettings = getVideoExportSettings();
 
   const overlayAssets = {
     previewEmblems: {},
     highResEmblems: {},
     continuation: null,
   };
-  let uploadedImage = null;
+  let uploadedMedia = null;
+  let uploadedMediaType = 'image';
   let activityMessage = statusText.textContent;
   let assetWarning = '';
   let highResMessage = '';
+  let previewAnimationFrame = null;
 
   function updateStatusText() {
     statusText.textContent = [activityMessage, highResMessage, assetWarning].filter(Boolean).join(' ');
@@ -87,6 +91,10 @@
     return document.querySelector('input[name="sizeMode"]:checked')?.value || DEFAULTS.mode;
   }
 
+  function selectedExportMode() {
+    return document.querySelector('input[name="exportMode"]:checked')?.value || 'image';
+  }
+
   function currentState() {
     return createRenderState({
       mode: currentMode(),
@@ -99,7 +107,7 @@
   }
 
   function resizeCanvas(state) {
-    const size = getCanvasSize(state.mode, uploadedImage);
+    const size = getCanvasSize(state.mode, uploadedMedia);
     canvas.width = size.width;
     canvas.height = size.height;
     canvas.style.aspectRatio = `${size.width} / ${size.height}`;
@@ -111,22 +119,32 @@
   function render(options = {}) {
     const state = currentState();
     const emblems = options.emblems || overlayAssets.previewEmblems;
+    const animation = getAnimatedOverlayState(options.progress ?? 1);
     resizeCanvas(state);
     const width = canvas.width;
     const height = canvas.height;
     ctx.clearRect(0, 0, width, height);
 
-    if (uploadedImage) {
-      const rect = getCoverRect(uploadedImage.width, uploadedImage.height, width, height);
-      ctx.drawImage(uploadedImage, rect.dx, rect.dy, rect.dw, rect.dh);
+    if (uploadedMedia) {
+      drawMediaFrame(uploadedMedia, width, height);
     } else {
       drawPlaceholder(width, height);
     }
 
-    ctx.fillStyle = hexToRgba(state.overlayColor, state.overlayOpacity);
+    ctx.fillStyle = hexToRgba(state.overlayColor, state.overlayOpacity * animation.overlayAlpha);
     ctx.fillRect(0, 0, width, height);
-    drawVignette(width, height);
-    drawCenterOverlay(state, width, height, emblems);
+    drawVignette(width, height, animation.overlayAlpha);
+    drawCenterOverlay(state, width, height, emblems, animation);
+  }
+
+  function drawMediaFrame(media, width, height) {
+    const dimensions = getMediaDimensions(media);
+    if (!dimensions) {
+      drawPlaceholder(width, height);
+      return;
+    }
+    const rect = getCoverRect(dimensions.width, dimensions.height, width, height);
+    ctx.drawImage(media, rect.dx, rect.dy, rect.dw, rect.dh);
   }
 
   function drawPlaceholder(width, height) {
@@ -137,7 +155,7 @@
     ctx.fillRect(0, 0, width, height);
   }
 
-  function drawVignette(width, height) {
+  function drawVignette(width, height, alpha = 1) {
     const gradient = ctx.createRadialGradient(
       width * 0.5,
       height * 0.42,
@@ -149,11 +167,14 @@
     gradient.addColorStop(0, 'rgba(255, 196, 92, 0.08)');
     gradient.addColorStop(0.52, 'rgba(0, 0, 0, 0.04)');
     gradient.addColorStop(1, 'rgba(0, 0, 0, 0.42)');
+    ctx.save();
+    ctx.globalAlpha = alpha;
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
+    ctx.restore();
   }
 
-  function drawCenterOverlay(state, width, height, emblems) {
+  function drawCenterOverlay(state, width, height, emblems, animation = getAnimatedOverlayState(1)) {
     const layout = getOverlayLayout(width, height);
     const {
       cx,
@@ -174,19 +195,39 @@
       continuationWidth,
     } = layout;
 
-    drawEmblemGlow(cx, emblemY, emblemSize);
-    drawLuminousEmblem(emblems[state.emblem], cx, emblemY, emblemSize * 1.16);
-    drawTextLine(state.line1, cx, line1Y, line1Size, 700, '#ded0bb', 0.95, width * 0.42);
-    drawTextLine(state.line2, cx, line2Y, line2Size, 850, '#fff8ed', 1, width * 0.47);
-    drawOrnamentDivider(cx, dividerY, dividerWidth, height);
-    drawTaskBand(cx, taskBandY, taskBandWidth, taskBandHeight);
-    drawTaskCompleteText(state.line3, cx, taskY, taskWidth);
-    drawTaskGlow(cx, bottomY, continuationWidth * 1.05, height * 0.032, '#d7bb86', 0.14);
-    drawCenteredAsset(overlayAssets.continuation, cx, bottomY, continuationWidth, null, 0.9);
+    drawEmblemGlow(cx, emblemY, emblemSize * animation.emblemScale, animation.emblemAlpha);
+    drawLuminousEmblem(emblems[state.emblem], cx, emblemY, emblemSize * 1.16 * animation.emblemScale, animation.emblemAlpha);
+    drawTextLine(
+      state.line1,
+      cx,
+      line1Y + animation.line1OffsetY,
+      line1Size,
+      700,
+      '#ded0bb',
+      0.95 * animation.line1Alpha,
+      width * 0.42
+    );
+    drawTextLine(
+      state.line2,
+      cx,
+      line2Y,
+      line2Size,
+      850,
+      '#fff8ed',
+      animation.line2Alpha,
+      width * 0.47,
+      { scale: animation.line2Scale }
+    );
+    drawOrnamentDivider(cx, dividerY, dividerWidth * animation.dividerProgress, height, animation.dividerProgress);
+    drawTaskBand(cx, taskBandY, taskBandWidth * animation.taskBandProgress, taskBandHeight);
+    drawTaskCompleteText(state.line3, cx, taskY, taskWidth, animation.taskBandProgress);
+    drawTaskGlow(cx, bottomY, continuationWidth * 1.05, height * 0.032, '#d7bb86', 0.14 * animation.continuationAlpha);
+    drawCenteredAsset(overlayAssets.continuation, cx, bottomY, continuationWidth, null, 0.9 * animation.continuationAlpha);
   }
 
-  function drawEmblemGlow(cx, cy, size) {
+  function drawEmblemGlow(cx, cy, size, alpha = 1) {
     ctx.save();
+    ctx.globalAlpha = alpha;
     const glow = ctx.createRadialGradient(cx, cy, size * 0.08, cx, cy, size * 0.76);
     glow.addColorStop(0, 'rgba(255, 229, 170, 0.3)');
     glow.addColorStop(0.42, 'rgba(201, 169, 110, 0.18)');
@@ -198,15 +239,15 @@
     ctx.restore();
   }
 
-  function drawLuminousEmblem(asset, cx, cy, height) {
+  function drawLuminousEmblem(asset, cx, cy, height, alpha = 1) {
     if (!asset) {
       return;
     }
-    drawEmblemBacklight(asset, cx, cy, null, height);
-    drawGoldEmblemMask(asset, cx, cy, null, height);
+    drawEmblemBacklight(asset, cx, cy, null, height, alpha);
+    drawGoldEmblemMask(asset, cx, cy, null, height, alpha);
   }
 
-  function drawEmblemBacklight(asset, cx, cy, targetWidth, targetHeight) {
+  function drawEmblemBacklight(asset, cx, cy, targetWidth, targetHeight, alpha = 1) {
     const metrics = getAssetDrawMetrics(asset, cx, cy, targetWidth, targetHeight);
     const layer = createEmblemMaskLayer(metrics, [
       [0, 'rgba(255, 239, 198, 0.78)'],
@@ -218,14 +259,14 @@
     }
 
     ctx.save();
-    ctx.globalAlpha = 0.78;
+    ctx.globalAlpha = 0.78 * alpha;
     ctx.filter = 'blur(4px)';
     ctx.globalCompositeOperation = 'screen';
     ctx.drawImage(layer.canvas, cx - layer.width / 2, cy - layer.height / 2);
     ctx.restore();
   }
 
-  function drawGoldEmblemMask(asset, cx, cy, targetWidth, targetHeight) {
+  function drawGoldEmblemMask(asset, cx, cy, targetWidth, targetHeight, alpha = 1) {
     const metrics = getAssetDrawMetrics(asset, cx, cy, targetWidth, targetHeight);
     const layer = createEmblemMaskLayer(metrics, [
       [0, '#FFF2C8'],
@@ -239,6 +280,7 @@
     }
 
     ctx.save();
+    ctx.globalAlpha = alpha;
     ctx.filter = 'drop-shadow(0 0 10px rgba(201, 169, 110, 0.6))';
     ctx.drawImage(layer.canvas, cx - layer.width / 2, cy - layer.height / 2);
     ctx.restore();
@@ -293,9 +335,12 @@
     };
   }
 
-  function drawOrnamentDivider(cx, cy, width, height) {
+  function drawOrnamentDivider(cx, cy, width, height, progress = 1) {
+    if (width <= 0 || progress <= 0) {
+      return;
+    }
     const lineGap = width * 0.075;
-    const diamond = Math.max(15, height * 0.019);
+    const diamond = Math.max(15, height * 0.019) * clampProgress(progress);
     const lineY = cy;
     const leftStart = cx - width / 2;
     const leftEnd = cx - lineGap;
@@ -367,8 +412,9 @@
     ctx.restore();
   }
 
-  function drawTaskCompleteText(text, x, y, maxWidth) {
+  function drawTaskCompleteText(text, x, y, maxWidth, alpha = 1) {
     ctx.save();
+    ctx.globalAlpha = alpha;
     let size = Math.max(18, maxWidth * 0.2);
     ctx.font = `700 ${Math.round(size)}px Microsoft YaHei, PingFang SC, sans-serif`;
     while (size > 14 && ctx.measureText(text).width > maxWidth) {
@@ -462,9 +508,12 @@
     };
   }
 
-  function drawTextLine(text, x, y, size, weight, color, alpha, maxWidth) {
+  function drawTextLine(text, x, y, size, weight, color, alpha, maxWidth, options = {}) {
     ctx.save();
-    const fittedSize = fitFontSize(text, size, weight, maxWidth);
+    const scale = options.scale || 1;
+    const fittedSize = fitFontSize(text, size, weight, maxWidth ? maxWidth / scale : maxWidth);
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
     ctx.font = `${weight} ${Math.max(18, Math.round(fittedSize))}px Microsoft YaHei, PingFang SC, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -474,9 +523,9 @@
     ctx.shadowOffsetY = Math.max(2, fittedSize * 0.055);
     ctx.strokeStyle = 'rgba(65, 46, 28, 0.5)';
     ctx.lineWidth = Math.max(2, fittedSize * 0.06);
-    ctx.strokeText(text, x, y);
+    ctx.strokeText(text, 0, 0);
     ctx.fillStyle = color;
-    ctx.fillText(text, x, y);
+    ctx.fillText(text, 0, 0);
     ctx.restore();
   }
 
@@ -676,12 +725,20 @@
     };
   }
 
-  function setUploadedImage(image, name) {
-    uploadedImage = image;
-    activityMessage = `已加载 ${name}，可以导出图片。`;
+  function setUploadedMedia(media, type, name) {
+    stopAnimationPreview({ renderFinal: false });
+    uploadedMedia = media;
+    uploadedMediaType = type;
+    const label = type === 'video' ? '视频' : '图片';
+    activityMessage = `已加载 ${name} ${label}，可以预览动画或导出。`;
     updateStatusText();
     exportButton.disabled = false;
+    previewAnimationButton.disabled = false;
     render();
+  }
+
+  function setUploadedImage(image, name) {
+    setUploadedMedia(image, 'image', name);
   }
 
   function loadImageSource(src, name) {
@@ -693,8 +750,62 @@
       });
   }
 
+  function loadVideoSource(src, name) {
+    const video = document.createElement('video');
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = 'auto';
+    video.crossOrigin = 'anonymous';
+    video.addEventListener('loadedmetadata', () => {
+      video.currentTime = 0;
+    }, { once: true });
+    video.addEventListener('loadeddata', () => {
+      setUploadedMedia(video, 'video', name);
+    }, { once: true });
+    video.addEventListener('error', () => {
+      activityMessage = '视频读取失败，请换一个视频重试。';
+      updateStatusText();
+    }, { once: true });
+    video.src = src;
+    video.load();
+  }
+
+  function waitForVideoSeek(video, timeSeconds) {
+    return new Promise((resolve, reject) => {
+      const duration = Number.isFinite(video.duration) ? video.duration : 0;
+      const target = Math.min(Math.max(0, timeSeconds), Math.max(0, duration - 0.001));
+      if (Math.abs(video.currentTime - target) < 0.002 && video.readyState >= 2) {
+        resolve();
+        return;
+      }
+      const cleanup = () => {
+        video.removeEventListener('seeked', handleSeeked);
+        video.removeEventListener('error', handleError);
+      };
+      const handleSeeked = () => {
+        cleanup();
+        resolve();
+      };
+      const handleError = () => {
+        cleanup();
+        reject(new Error('Video seek failed.'));
+      };
+      video.addEventListener('seeked', handleSeeked, { once: true });
+      video.addEventListener('error', handleError, { once: true });
+      video.currentTime = target;
+    });
+  }
+
   function selectedHighResEmblemReady() {
     return Boolean(overlayAssets.highResEmblems[currentState().emblem]);
+  }
+
+  function downloadBlob(blob, fileName) {
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(link.href);
   }
 
   function exportHighResImage() {
@@ -712,15 +823,269 @@
         render();
         return;
       }
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = 'task-overlay.png';
-      link.click();
-      URL.revokeObjectURL(link.href);
+      downloadBlob(blob, 'task-overlay.png');
       activityMessage = '已生成并下载 task-overlay.png。';
       updateStatusText();
       render();
     }, 'image/png');
+  }
+
+  function getExportDurationMs() {
+    if (uploadedMediaType === 'video' && Number.isFinite(uploadedMedia?.duration) && uploadedMedia.duration > 0) {
+      return Math.round(uploadedMedia.duration * 1000);
+    }
+    return videoSettings.durationMs;
+  }
+
+  function getVideoFrameCount(durationMs = getExportDurationMs()) {
+    return Math.max(1, Math.round((durationMs / 1000) * videoSettings.fps));
+  }
+
+  function renderAnimationFrame(frameIndex, frameCount, emblems) {
+    const elapsedMs = (frameIndex / videoSettings.fps) * 1000;
+    const progress = frameIndex >= frameCount - 1
+      ? 1
+      : getTimelineProgress(elapsedMs, getExportDurationMs(), uploadedMediaType);
+    render({ emblems, progress });
+  }
+
+  async function prepareMediaFrame(frameIndex) {
+    if (uploadedMediaType !== 'video') {
+      return;
+    }
+    await waitForVideoSeek(uploadedMedia, frameIndex / videoSettings.fps);
+  }
+
+  async function loadMp4Muxer() {
+    return import('https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/+esm');
+  }
+
+  async function exportAnimatedMp4() {
+    if (!('VideoEncoder' in window) || !('VideoFrame' in window)) {
+      throw new Error('This browser does not support WebCodecs MP4 export.');
+    }
+
+    const { Muxer, ArrayBufferTarget } = await loadMp4Muxer();
+    const frameCount = getVideoFrameCount();
+    const frameDurationUs = Math.round(1_000_000 / videoSettings.fps);
+    await prepareMediaFrame(0);
+    renderAnimationFrame(0, frameCount, overlayAssets.highResEmblems);
+
+    if (canvas.width % 2 !== 0 || canvas.height % 2 !== 0) {
+      throw new Error('MP4 export requires even canvas dimensions.');
+    }
+
+    const config = {
+      codec: videoSettings.mp4Codec,
+      width: canvas.width,
+      height: canvas.height,
+      bitrate: videoSettings.bitrate,
+      framerate: videoSettings.fps,
+    };
+    const support = await VideoEncoder.isConfigSupported(config);
+    if (!support.supported) {
+      throw new Error('This browser does not support the required MP4 codec.');
+    }
+
+    const target = new ArrayBufferTarget();
+    const muxer = new Muxer({
+      target,
+      video: {
+        codec: 'avc',
+        width: canvas.width,
+        height: canvas.height,
+        frameRate: videoSettings.fps,
+      },
+      fastStart: 'in-memory',
+      firstTimestampBehavior: 'offset',
+    });
+
+    let encoderError = null;
+    const encoder = new VideoEncoder({
+      output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+      error: (error) => {
+        encoderError = error;
+      },
+    });
+    encoder.configure(support.config);
+
+    for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
+      await prepareMediaFrame(frameIndex);
+      renderAnimationFrame(frameIndex, frameCount, overlayAssets.highResEmblems);
+      const frame = new VideoFrame(canvas, {
+        timestamp: frameIndex * frameDurationUs,
+        duration: frameDurationUs,
+      });
+      encoder.encode(frame);
+      frame.close();
+
+      if (frameIndex % 8 === 0) {
+        activityMessage = `正在生成 MP4 视频 ${frameIndex + 1}/${frameCount}...`;
+        updateStatusText();
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+      }
+    }
+
+    await encoder.flush();
+    encoder.close();
+    if (encoderError) {
+      throw encoderError;
+    }
+    muxer.finalize();
+    downloadBlob(new Blob([target.buffer], { type: 'video/mp4' }), videoSettings.mp4FileName);
+    activityMessage = `已生成并下载 ${videoSettings.mp4FileName}。`;
+    updateStatusText();
+  }
+
+  async function exportAnimatedWebm() {
+    if (!canvas.captureStream || !('MediaRecorder' in window)) {
+      throw new Error('This browser does not support WebM recording.');
+    }
+
+    const frameCount = getVideoFrameCount();
+    const frameDurationMs = 1000 / videoSettings.fps;
+    const mimeType = MediaRecorder.isTypeSupported(videoSettings.webmMimeType)
+      ? videoSettings.webmMimeType
+      : 'video/webm';
+    const chunks = [];
+    const stream = canvas.captureStream(videoSettings.fps);
+    const recorder = new MediaRecorder(stream, {
+      mimeType,
+      videoBitsPerSecond: videoSettings.bitrate,
+    });
+    const finished = new Promise((resolve, reject) => {
+      recorder.ondataavailable = (event) => {
+        if (event.data?.size > 0) {
+          chunks.push(event.data);
+        }
+      };
+      recorder.onerror = () => reject(recorder.error || new Error('WebM recording failed.'));
+      recorder.onstop = resolve;
+    });
+
+    recorder.start();
+    if (uploadedMediaType === 'video') {
+      uploadedMedia.currentTime = 0;
+      await uploadedMedia.play().catch(() => {});
+    }
+    const track = stream.getVideoTracks()[0];
+    for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
+      renderAnimationFrame(frameIndex, frameCount, overlayAssets.highResEmblems);
+      track?.requestFrame?.();
+      if (frameIndex % 8 === 0) {
+        activityMessage = `正在生成 WebM 备用视频 ${frameIndex + 1}/${frameCount}...`;
+        updateStatusText();
+      }
+      await new Promise((resolve) => setTimeout(resolve, frameDurationMs));
+    }
+    recorder.stop();
+    if (uploadedMediaType === 'video') {
+      uploadedMedia.pause();
+    }
+    await finished;
+    for (const trackItem of stream.getTracks()) {
+      trackItem.stop();
+    }
+
+    downloadBlob(new Blob(chunks, { type: mimeType }), videoSettings.webmFileName);
+    activityMessage = `MP4 不可用，已生成并下载 ${videoSettings.webmFileName}。`;
+    updateStatusText();
+  }
+
+  async function exportAnimatedVideo() {
+    if (!selectedHighResEmblemReady()) {
+      activityMessage = '高清大图标仍在加载，请稍等后再导出视频。';
+      updateStatusText();
+      return;
+    }
+
+    stopAnimationPreview({ renderFinal: false });
+    exportButton.disabled = true;
+    try {
+      activityMessage = '正在准备 MP4 视频导出...';
+      updateStatusText();
+      await exportAnimatedMp4();
+    } catch (error) {
+      console.warn(error);
+      activityMessage = 'MP4 导出不可用，正在生成 WebM 备用视频...';
+      updateStatusText();
+      await exportAnimatedWebm();
+    } finally {
+      exportButton.disabled = false;
+      render();
+    }
+  }
+
+  function exportSelectedFormat() {
+    stopAnimationPreview({ renderFinal: false });
+    if (selectedExportMode() === 'video') {
+      exportAnimatedVideo();
+      return;
+    }
+    exportHighResImage();
+  }
+
+  function stopAnimationPreview(options = {}) {
+    if (previewAnimationFrame !== null) {
+      cancelAnimationFrame(previewAnimationFrame);
+      previewAnimationFrame = null;
+    }
+    if (uploadedMediaType === 'video' && uploadedMedia) {
+      uploadedMedia.pause();
+    }
+    previewAnimationButton.disabled = !uploadedMedia;
+    previewAnimationButton.textContent = '预览动画';
+    if (options.renderFinal !== false) {
+      render();
+    }
+  }
+
+  function playAnimationPreview() {
+    if (!uploadedMedia) {
+      activityMessage = '请先上传图片或视频，再预览动画。';
+      updateStatusText();
+      return;
+    }
+
+    stopAnimationPreview({ renderFinal: false });
+    const startedAt = performance.now();
+    const previewDurationMs = uploadedMediaType === 'video' ? getExportDurationMs() : videoSettings.durationMs;
+    if (uploadedMediaType === 'video') {
+      uploadedMedia.currentTime = 0;
+      uploadedMedia.play().catch(() => {});
+    }
+    const emblems = selectedHighResEmblemReady()
+      ? overlayAssets.highResEmblems
+      : overlayAssets.previewEmblems;
+    previewAnimationButton.disabled = true;
+    previewAnimationButton.textContent = '预览中...';
+    activityMessage = '正在预览动画效果。';
+    updateStatusText();
+
+    function tick(now) {
+      const elapsedMs = now - startedAt;
+      const progress = getTimelineProgress(elapsedMs, previewDurationMs, uploadedMediaType);
+      render({ emblems, progress });
+      if (elapsedMs < previewDurationMs) {
+        previewAnimationFrame = requestAnimationFrame(tick);
+        return;
+      }
+      previewAnimationFrame = null;
+      if (uploadedMediaType === 'video') {
+        uploadedMedia.pause();
+      }
+      previewAnimationButton.disabled = false;
+      previewAnimationButton.textContent = '预览动画';
+      activityMessage = '动画预览完成，可继续调整或导出视频。';
+      updateStatusText();
+      render();
+    }
+
+    previewAnimationFrame = requestAnimationFrame(tick);
+  }
+
+  function updateExportButtonLabel() {
+    exportButton.textContent = selectedExportMode() === 'video' ? '导出视频' : '导出图片';
   }
 
   function loadTestImageFromQuery() {
@@ -756,26 +1121,45 @@
       if (!file) {
         return;
       }
-      loadImageSource(URL.createObjectURL(file), file.name);
+      const url = URL.createObjectURL(file);
+      if ((file.type || '').startsWith('video/') || /\.(mp4|webm|mov|m4v)$/iu.test(file.name)) {
+        loadVideoSource(url, file.name);
+        return;
+      }
+      loadImageSource(url, file.name);
     });
 
     [line1Input, line2Input, overlayColorInput, overlayOpacityInput].forEach((control) => {
       control.addEventListener('input', () => {
+        stopAnimationPreview({ renderFinal: false });
         opacityValue.textContent = `${Math.round(Number(overlayOpacityInput.value) * 100)}%`;
         render();
       });
     });
 
     document.querySelectorAll('input[name="sizeMode"]').forEach((control) => {
-      control.addEventListener('change', render);
+      control.addEventListener('change', () => {
+        stopAnimationPreview({ renderFinal: false });
+        render();
+      });
     });
 
-    emblemSelect.addEventListener('change', render);
+    emblemSelect.addEventListener('change', () => {
+      stopAnimationPreview({ renderFinal: false });
+      render();
+    });
 
-    exportButton.addEventListener('click', exportHighResImage);
+    document.querySelectorAll('input[name="exportMode"]').forEach((control) => {
+      control.addEventListener('change', updateExportButtonLabel);
+    });
+
+    previewAnimationButton.addEventListener('click', playAnimationPreview);
+    exportButton.addEventListener('click', exportSelectedFormat);
   }
 
   exportButton.disabled = true;
+  previewAnimationButton.disabled = true;
+  updateExportButtonLabel();
   bindEvents();
   loadOverlayAssets().catch(() => {
     assetWarning = '固定素材加载失败，请检查 assets 目录。';

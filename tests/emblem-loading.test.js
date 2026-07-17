@@ -47,6 +47,7 @@ function createDrawingContext(drawCalls, onRender) {
   const stateStack = [];
   const context = {
     filter: 'none',
+    globalAlpha: 1,
     globalCompositeOperation: 'source-over',
     clearRect() {
       onRender();
@@ -63,6 +64,7 @@ function createDrawingContext(drawCalls, onRender) {
     save() {
       stateStack.push({
         filter: this.filter,
+        globalAlpha: this.globalAlpha,
         globalCompositeOperation: this.globalCompositeOperation,
       });
     },
@@ -76,6 +78,8 @@ function createDrawingContext(drawCalls, onRender) {
     moveTo() {},
     lineTo() {},
     closePath() {},
+    translate() {},
+    scale() {},
     strokeText() {},
     fillText() {},
     measureText(text) {
@@ -110,6 +114,7 @@ function createHarness(options = {}) {
     overlayColorInput: createElement({ value: '#000000' }),
     overlayOpacityInput: createElement({ value: '0.45' }),
     opacityValue: createElement({ textContent: '45%' }),
+    previewAnimationButton: createElement({ textContent: '预览动画' }),
     exportButton: createElement(),
     statusText: createElement({ textContent: '上传图片后可导出生成结果。' }),
   };

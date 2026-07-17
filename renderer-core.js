@@ -21,6 +21,16 @@ const DEFAULTS = {
   overlayOpacity: 0.62,
 };
 
+const VIDEO_EXPORT_SETTINGS = Object.freeze({
+  durationMs: 3200,
+  fps: 30,
+  bitrate: 8_000_000,
+  mp4Codec: 'avc1.42002A',
+  mp4FileName: 'task-overlay-video.mp4',
+  webmMimeType: 'video/webm;codecs=vp9',
+  webmFileName: 'task-overlay-video.webm',
+});
+
 function clampOpacity(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) {
@@ -29,16 +39,88 @@ function clampOpacity(value) {
   return Math.min(1, Math.max(0, number));
 }
 
+function clampProgress(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return 0;
+  }
+  return Math.min(1, Math.max(0, number));
+}
+
+function easeOutCubic(value) {
+  const progress = clampProgress(value);
+  return 1 - Math.pow(1 - progress, 3);
+}
+
+function easeOutBack(value) {
+  const progress = clampProgress(value);
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(progress - 1, 3) + c1 * Math.pow(progress - 1, 2);
+}
+
+function rangeProgress(progress, start, end) {
+  if (end <= start) {
+    return clampProgress(progress >= end ? 1 : 0);
+  }
+  return clampProgress((clampProgress(progress) - start) / (end - start));
+}
+
+function getAnimatedOverlayState(progress) {
+  const clamped = clampProgress(progress);
+  return {
+    progress: clamped,
+    overlayAlpha: easeOutCubic(rangeProgress(clamped, 0, 0.12)),
+    emblemAlpha: easeOutCubic(rangeProgress(clamped, 0.02, 0.12)),
+    emblemScale: 0.84 + easeOutBack(rangeProgress(clamped, 0.02, 0.16)) * 0.16,
+    line1Alpha: easeOutCubic(rangeProgress(clamped, 0.02, 0.12)),
+    line1OffsetY: (1 - easeOutCubic(rangeProgress(clamped, 0.02, 0.12))) * 16,
+    line2Alpha: easeOutCubic(rangeProgress(clamped, 0.02, 0.12)),
+    line2Scale: 0.94 + easeOutBack(rangeProgress(clamped, 0.02, 0.16)) * 0.06,
+    dividerProgress: easeOutCubic(rangeProgress(clamped, 0.02, 0.12)),
+    taskBandProgress: easeOutCubic(rangeProgress(clamped, 0.17, 0.26)),
+    continuationAlpha: easeOutCubic(rangeProgress(clamped, 0.17, 0.28)),
+  };
+}
+
+function getVideoExportSettings() {
+  return { ...VIDEO_EXPORT_SETTINGS };
+}
+
+function getTimelineProgress(elapsedMs, durationMs, mediaType = 'image') {
+  const total = Math.max(1, Number(durationMs) || VIDEO_EXPORT_SETTINGS.durationMs);
+  const elapsed = Math.max(0, Number(elapsedMs) || 0);
+  if (mediaType === 'video') {
+    const animationStart = Math.max(0, total - VIDEO_EXPORT_SETTINGS.durationMs);
+    return clampProgress((elapsed - animationStart) / VIDEO_EXPORT_SETTINGS.durationMs);
+  }
+  return clampProgress(elapsed / VIDEO_EXPORT_SETTINGS.durationMs);
+}
+
 function normalizeEmblem(value) {
   return EMBLEM_KEYS.includes(value) ? value : DEFAULTS.emblem;
 }
 
-function getCanvasSize(mode, image) {
-  if (mode === 'source' && image?.width > 0 && image?.height > 0) {
+function getMediaDimensions(media) {
+  if (media?.videoWidth > 0 && media?.videoHeight > 0) {
     return {
-      width: Math.round(image.width),
-      height: Math.round(image.height),
+      width: Math.round(media.videoWidth),
+      height: Math.round(media.videoHeight),
     };
+  }
+  if (media?.width > 0 && media?.height > 0) {
+    return {
+      width: Math.round(media.width),
+      height: Math.round(media.height),
+    };
+  }
+  return null;
+}
+
+function getCanvasSize(mode, media) {
+  const dimensions = getMediaDimensions(media);
+  if (mode === 'source' && dimensions) {
+    return dimensions;
   }
   return {
     width: DEFAULTS.outputWidth,
@@ -100,7 +182,12 @@ if (typeof module !== 'undefined') {
     DEFAULTS,
     EMBLEM_KEYS,
     clampOpacity,
+    clampProgress,
     createRenderState,
+    getAnimatedOverlayState,
+    getMediaDimensions,
+    getTimelineProgress,
+    getVideoExportSettings,
     getOverlayLayout,
     getCanvasSize,
     getCoverRect,

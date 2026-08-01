@@ -3,18 +3,31 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>任务完成图片生成器</title>
+    <meta name="theme-color" content="#f4f6f8">
+    <title>提瓦特任务影像工坊</title>
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
+    <video class="workbench-video" data-src="assets/workbench-background.webm" muted loop playsinline preload="none" aria-hidden="true" disablepictureinpicture></video>
+    <canvas id="editorParticleCanvas" class="editor-particle-canvas" aria-hidden="true"></canvas>
     <main class="app-shell">
       <section class="control-panel" aria-label="图片生成设置">
-        <div class="brand">
-          <span class="brand-kicker">Overlay Studio</span>
-          <h1>任务完成图片生成器</h1>
-        </div>
+        <header class="brand">
+          <div class="brand-line">
+            <span class="brand-mark" aria-hidden="true">提</span>
+            <span class="brand-kicker">提瓦特影像</span>
+            <span class="brand-state">本地生成</span>
+          </div>
+          <h1>提瓦特任务<br>影像工坊</h1>
+          <p class="brand-subtitle">把一帧画面，变成值得保存的结果。</p>
+        </header>
 
         <div class="panel-section">
+          <div class="section-heading">
+            <span class="section-index">01</span>
+            <h2>内容</h2>
+          </div>
+
           <label class="field upload-field">
             <span>上传图片或视频</span>
             <input id="imageInput" type="file" accept="image/*,video/*">
@@ -32,6 +45,11 @@
         </div>
 
         <div class="panel-section">
+          <div class="section-heading">
+            <span class="section-index">02</span>
+            <h2>外观</h2>
+          </div>
+
           <fieldset class="field radio-group">
             <legend>输出尺寸</legend>
             <div class="segmented-options">
@@ -46,12 +64,10 @@
             </div>
           </fieldset>
 
-          <div class="inline-fields">
-            <label class="field compact-field">
-              <span>遮罩颜色</span>
-              <input id="overlayColorInput" type="color" value="#12151f">
-            </label>
-          </div>
+          <label class="field compact-field">
+            <span>遮罩颜色</span>
+            <input id="overlayColorInput" type="color" value="#12151f">
+          </label>
 
           <label class="field range-field">
             <span>遮罩透明度 <strong id="opacityValue">62%</strong></span>
@@ -59,7 +75,7 @@
           </label>
 
           <label class="field">
-            <span>选择大图标</span>
+            <span>任务徽记</span>
             <select id="emblemSelect">
               <option value="mengdei">蒙德</option>
               <option value="liyue">璃月</option>
@@ -70,6 +86,31 @@
               <option value="nuodekalai">空月之歌</option>
             </select>
           </label>
+
+          <fieldset class="field radio-group motion-mode-group">
+            <legend>粒子效果</legend>
+            <div class="segmented-options motion-options">
+              <label>
+                <input type="radio" name="motionMode" value="off">
+                <span>关闭</span>
+              </label>
+              <label>
+                <input type="radio" name="motionMode" value="soft" checked>
+                <span>克制</span>
+              </label>
+              <label>
+                <input type="radio" name="motionMode" value="full">
+                <span>发布感</span>
+              </label>
+            </div>
+          </fieldset>
+        </div>
+
+        <div class="panel-section export-section">
+          <div class="section-heading">
+            <span class="section-index">03</span>
+            <h2>输出</h2>
+          </div>
 
           <fieldset class="field radio-group export-mode-group">
             <legend>导出格式</legend>
@@ -86,26 +127,44 @@
           </fieldset>
         </div>
 
-        <button id="previewAnimationButton" class="secondary-button" type="button">预览动画</button>
-        <button id="exportButton" class="primary-button" type="button">导出图片</button>
-        <p id="statusText" class="status-text">上传图片后可导出生成结果。</p>
+        <div class="action-stack">
+          <button id="previewAnimationButton" class="secondary-button" type="button">
+            <span class="button-icon" aria-hidden="true">▶</span>
+            <span>预览动画</span>
+          </button>
+          <button id="exportButton" class="primary-button" type="button">
+            <span>导出图片</span>
+            <span class="button-arrow" aria-hidden="true">↗</span>
+          </button>
+        </div>
+
+        <p id="statusText" class="status-text" aria-live="polite">上传图片后可导出生成结果。</p>
       </section>
 
       <section class="preview-panel" aria-label="图片预览">
         <div class="preview-toolbar">
-          <div>
-            <span class="preview-label">Preview</span>
+          <div class="preview-title-group">
+            <div class="preview-heading-line">
+              <span class="preview-dot" aria-hidden="true"></span>
+              <span class="preview-label">LIVE PREVIEW</span>
+            </div>
             <h2>实时预览</h2>
           </div>
-          <span id="canvasSize" class="canvas-size">1920 x 1080</span>
+          <div class="preview-meta">
+            <span class="preview-meta-label">CANVAS</span>
+            <span id="canvasSize" class="canvas-size">1920 x 1080</span>
+          </div>
         </div>
         <div class="canvas-stage">
           <canvas id="previewCanvas" width="1920" height="1080"></canvas>
+          <div class="stage-corner stage-corner-tl" aria-hidden="true"></div>
+          <div class="stage-corner stage-corner-br" aria-hidden="true"></div>
         </div>
       </section>
     </main>
 
     <script src="renderer-core.js"></script>
     <script src="script.js"></script>
+    <script src="editor-particles.js"></script>
   </body>
 </html>

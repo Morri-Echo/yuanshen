@@ -2,10 +2,13 @@ const assert = require('node:assert/strict');
 const {
   DEFAULTS,
   EMBLEM_KEYS,
+  PARTICLE_DEFAULTS,
   clampOpacity,
   clampProgress,
   createRenderState,
   getAnimatedOverlayState,
+  getParticleCount,
+  getParticleState,
   getMediaDimensions,
   getTimelineProgress,
   getVideoExportSettings,
@@ -175,6 +178,76 @@ test('animated overlay starts hidden and ends matching the still layout', () => 
   assert.equal(end.continuationAlpha, 1);
   assert.equal(end.emblemScale, 1);
   assert.equal(end.line2Scale, 1);
+});
+
+test('particle state is deterministic for the same seed and timeline position', () => {
+  const options = { seed: 'overlay-studio', elapsedMs: 1450 };
+  const first = getParticleState(1920, 1080, 0.65, options);
+  const second = getParticleState(1920, 1080, 0.65, options);
+  const differentSeed = getParticleState(1920, 1080, 0.65, {
+    ...options,
+    seed: 'another-seed',
+  });
+
+  assert.deepEqual(first, second);
+  assert.notDeepEqual(first.particles, differentSeed.particles);
+  assert.equal(first.count, first.particles.length);
+});
+
+test('particle reveal starts fully transparent and has a stable final state', () => {
+  const start = getParticleState({
+    width: 1920,
+    height: 1080,
+    progress: 0,
+    seed: 42,
+  });
+  const end = getParticleState({
+    width: 1920,
+    height: 1080,
+    progress: 1,
+    seed: 42,
+  });
+
+  assert.ok(start.particles.length > 0);
+  assert.ok(start.particles.every((particle) => particle.alpha === 0));
+  assert.ok(end.particles.every((particle) => particle.alpha > 0));
+  assert.deepEqual(
+    end,
+    getParticleState({ width: 1920, height: 1080, progress: 1, seed: 42 })
+  );
+});
+
+test('particle count grows with canvas area and remains capped', () => {
+  const smallCount = getParticleCount(640, 360);
+  const hdCount = getParticleCount(1920, 1080);
+  const oversizedCount = getParticleCount(15_360, 8640);
+  const oversizedState = getParticleState(15_360, 8640, 1);
+
+  assert.ok(smallCount >= PARTICLE_DEFAULTS.minCount);
+  assert.ok(smallCount <= hdCount);
+  assert.ok(hdCount <= oversizedCount);
+  assert.equal(oversizedCount, PARTICLE_DEFAULTS.maxCount);
+  assert.equal(oversizedState.count, PARTICLE_DEFAULTS.maxCount);
+  assert.equal(oversizedState.particles.length, PARTICLE_DEFAULTS.maxCount);
+});
+
+test('particle frame values stay finite and inside the requested canvas', () => {
+  const state = getParticleState(1280, 720, 0.8, {
+    seed: 7,
+    elapsedMs: 2800,
+    maxCount: 24,
+  });
+
+  assert.ok(state.particles.length <= 24);
+  for (const particle of state.particles) {
+    assert.ok(Number.isFinite(particle.x));
+    assert.ok(Number.isFinite(particle.y));
+    assert.ok(Number.isFinite(particle.alpha));
+    assert.ok(particle.x >= 0 && particle.x <= state.width);
+    assert.ok(particle.y >= 0 && particle.y <= state.height);
+    assert.ok(particle.radius > 0);
+    assert.ok(particle.alpha >= 0 && particle.alpha <= particle.maxAlpha);
+  }
 });
 
 test('animated overlay delays task complete and continuation by about half a second', () => {

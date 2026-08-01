@@ -1,4 +1,4 @@
-# Unrelated local media
+# Original and unrelated local video sources. The optimized workbench WebM is tracked.
 *.mp4
 
 # Generated exports, while preserving the documented sample

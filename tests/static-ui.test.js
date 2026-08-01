@@ -4,6 +4,7 @@ const path = require('node:path');
 
 const html = fs.readFileSync(path.resolve(__dirname, '..', 'index.html'), 'utf8');
 const script = fs.readFileSync(path.resolve(__dirname, '..', 'script.js'), 'utf8');
+const editorParticles = fs.readFileSync(path.resolve(__dirname, '..', 'editor-particles.js'), 'utf8');
 const styles = fs.readFileSync(path.resolve(__dirname, '..', 'styles.css'), 'utf8');
 
 const expectedEmblemOptions = [
@@ -17,7 +18,7 @@ const expectedEmblemOptions = [
 ];
 
 const emblemFieldMarkup = html.match(
-  /<label class="field">\s*<span>选择大图标<\/span>\s*<select id="emblemSelect">([\s\S]*?)<\/select>\s*<\/label>/u
+  /<label class="field">\s*<span>任务徽记<\/span>\s*<select id="emblemSelect">([\s\S]*?)<\/select>\s*<\/label>/u
 );
 assert.ok(
   emblemFieldMarkup,
@@ -39,14 +40,42 @@ const emblemSelectPosition = html.indexOf('id="emblemSelect"');
 const exportButtonPosition = html.indexOf('id="exportButton"');
 const previewAnimationButtonPosition = html.indexOf('id="previewAnimationButton"');
 const exportModePosition = html.indexOf('name="exportMode"');
+const motionModePosition = html.indexOf('name="motionMode"');
 
 assert.ok(opacityInputPosition >= 0, 'overlayOpacityInput should exist');
 assert.ok(emblemSelectPosition >= 0, 'emblemSelect should exist');
 assert.ok(exportButtonPosition >= 0, 'exportButton should exist');
 assert.ok(previewAnimationButtonPosition >= 0, 'previewAnimationButton should exist');
 assert.ok(exportModePosition >= 0, 'exportMode segmented controls should exist');
+assert.ok(motionModePosition >= 0, 'motionMode segmented controls should exist');
 assert.ok(html.includes('class="preview-toolbar"'), 'preview should include a toolbar');
 assert.ok(html.includes('id="canvasSize"'), 'preview should expose the current canvas size');
+assert.ok(
+  html.includes('id="editorParticleCanvas"'),
+  'editor chrome should include its own non-exported particle canvas'
+);
+assert.ok(
+  html.includes('class="workbench-video"'),
+  'editor chrome should include a dedicated workbench background video'
+);
+assert.ok(
+  html.includes('data-src="assets/workbench-background.webm"'),
+  'the optimized background video should be used as the workbench skin'
+);
+assert.equal(
+  styles.includes('workbench-skin.gif'),
+  false,
+  'the previous GIF skin should no longer be referenced'
+);
+assert.ok(
+  html.includes('<script src="editor-particles.js"></script>'),
+  'the editor particle layer should be loaded'
+);
+assert.ok(
+  html.indexOf('<script src="script.js"></script>')
+    < html.indexOf('<script src="editor-particles.js"></script>'),
+  'capture mode should be established before the editor particle layer initializes'
+);
 assert.match(
   html,
   /<input id="imageInput" type="file" accept="image\/\*,video\/\*">/u,
@@ -71,6 +100,20 @@ assert.match(
   html,
   /<input type="radio" name="exportMode" value="video">\s*<span>[^<]*<\/span>/u,
   'video export should be available as an export mode'
+);
+
+for (const motionMode of ['off', 'soft', 'full']) {
+  assert.match(
+    html,
+    new RegExp(`<input type="radio" name="motionMode" value="${motionMode}"`, 'u'),
+    `motion mode ${motionMode} should be available`
+  );
+}
+
+assert.match(
+  html,
+  /<input type="radio" name="motionMode" value="soft" checked>/u,
+  'the restrained particle mode should be selected by default'
 );
 
 assert.match(
@@ -137,6 +180,60 @@ assert.match(
   script,
   /previewAnimationButton/u,
   'script should bind the animation preview button'
+);
+
+assert.match(
+  script,
+  /function drawParticleField/u,
+  'the shared canvas renderer should provide an exportable particle layer'
+);
+
+assert.match(
+  script,
+  /getParticleState/u,
+  'particle rendering should use the deterministic renderer-core state'
+);
+
+assert.match(
+  styles,
+  /@media \(prefers-reduced-motion: reduce\)/u,
+  'editor motion should respect reduced-motion preferences'
+);
+
+assert.equal(
+  editorParticles.includes('Math.random'),
+  false,
+  'editor particles should use deterministic initialization instead of Math.random'
+);
+
+assert.match(
+  editorParticles,
+  /particle\.depth\s*\+=\s*particle\.speed/u,
+  'editor particles should advance through an explicit depth axis'
+);
+
+assert.match(
+  editorParticles,
+  /clearPreviewCanvasArea/u,
+  'editor particles should stay out of the generated preview canvas'
+);
+
+assert.match(
+  editorParticles,
+  /if\s*\(\s*!workbenchVideo\.src\s*&&\s*workbenchVideo\.dataset\.src\s*\)/u,
+  'the background video should load only after editor mode is established'
+);
+
+assert.match(
+  styles,
+  /body\.capture-mode \.editor-particle-canvas/u,
+  'capture mode should hide the editor-only particle canvas'
+);
+
+assert.match(
+  styles,
+  /body\.capture-mode \.workbench-video/u,
+  'capture mode should hide the editor-only background video'
 );
 
 assert.match(

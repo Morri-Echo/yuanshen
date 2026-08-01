@@ -33,6 +33,11 @@
   const canvas = document.getElementById('previewCanvas');
   const ctx = canvas.getContext('2d');
   const videoSettings = getVideoExportSettings();
+  const MOTION_PRESETS = Object.freeze({
+    off: Object.freeze({ strength: 0, particleCount: 0, streakCount: 0 }),
+    soft: Object.freeze({ strength: 0.58, particleCount: 22, streakCount: 4 }),
+    full: Object.freeze({ strength: 1, particleCount: 36, streakCount: 7 }),
+  });
 
   const overlayAssets = {
     previewEmblems: {},
@@ -45,6 +50,7 @@
   let assetWarning = '';
   let highResMessage = '';
   let previewAnimationFrame = null;
+  let autoplayTestPreview = false;
 
   function updateStatusText() {
     statusText.textContent = [activityMessage, highResMessage, assetWarning].filter(Boolean).join(' ');
@@ -95,6 +101,11 @@
     return document.querySelector('input[name="exportMode"]:checked')?.value || 'image';
   }
 
+  function currentMotionMode() {
+    const requested = document.querySelector('input[name="motionMode"]:checked')?.value || 'soft';
+    return Object.hasOwn(MOTION_PRESETS, requested) ? requested : 'soft';
+  }
+
   function currentState() {
     return createRenderState({
       mode: currentMode(),
@@ -108,8 +119,10 @@
 
   function resizeCanvas(state) {
     const size = getCanvasSize(state.mode, uploadedMedia);
-    canvas.width = size.width;
-    canvas.height = size.height;
+    if (canvas.width !== size.width || canvas.height !== size.height) {
+      canvas.width = size.width;
+      canvas.height = size.height;
+    }
     canvas.style.aspectRatio = `${size.width} / ${size.height}`;
     if (canvasSize) {
       canvasSize.textContent = `${size.width} x ${size.height}`;
@@ -120,6 +133,11 @@
     const state = currentState();
     const emblems = options.emblems || overlayAssets.previewEmblems;
     const animation = getAnimatedOverlayState(options.progress ?? 1);
+    const motionMode = options.motionMode || currentMotionMode();
+    const elapsedMs = Number.isFinite(options.elapsedMs)
+      ? Math.max(0, options.elapsedMs)
+      : animation.progress * videoSettings.durationMs;
+    const staticFrame = options.staticFrame ?? options.progress === undefined;
     resizeCanvas(state);
     const width = canvas.width;
     const height = canvas.height;
@@ -134,6 +152,7 @@
     ctx.fillStyle = hexToRgba(state.overlayColor, state.overlayOpacity * animation.overlayAlpha);
     ctx.fillRect(0, 0, width, height);
     drawVignette(width, height, animation.overlayAlpha);
+    drawParticleField(width, height, animation, elapsedMs, motionMode, staticFrame);
     drawCenterOverlay(state, width, height, emblems, animation);
   }
 
@@ -172,6 +191,102 @@
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
     ctx.restore();
+  }
+
+  function drawParticleField(width, height, animation, elapsedMs, motionMode, staticFrame) {
+    const preset = MOTION_PRESETS[motionMode] || MOTION_PRESETS.soft;
+    if (preset.particleCount <= 0 || preset.strength <= 0) {
+      return;
+    }
+
+    const count = staticFrame ? Math.min(5, preset.particleCount) : preset.particleCount;
+    const particleState = getParticleState(width, height, animation.progress, {
+      seed: `overlay-${motionMode}`,
+      elapsedMs: staticFrame ? videoSettings.durationMs : elapsedMs,
+      count,
+      minCount: count,
+      maxCount: count,
+    });
+    const reveal = Math.min(1, animation.progress / 0.34);
+    const revealEase = 1 - Math.pow(1 - reveal, 3);
+    const centerX = width * 0.5;
+    const centerY = height * 0.31;
+    const scale = Math.max(0.6, Math.min(2, Math.min(width / 1920, height / 1080)));
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    for (let index = 0; index < particleState.particles.length; index += 1) {
+      const particle = particleState.particles[index];
+      const targetX = particle.x;
+      const targetY = particle.y;
+      const x = centerX + (targetX - centerX) * (0.16 + revealEase * 0.84);
+      const y = centerY + (targetY - centerY) * (0.16 + revealEase * 0.84);
+      const normalizedX = Math.abs(x / width - 0.5);
+      const normalizedY = y / height;
+      const textSafeZone = normalizedX < 0.25 && normalizedY > 0.27 && normalizedY < 0.62;
+      const safeZoneAlpha = textSafeZone ? 0.16 : 1;
+      const finalAlpha = particle.alpha * preset.strength * safeZoneAlpha * (staticFrame ? 0.42 : 0.82);
+      if (finalAlpha <= 0.002) {
+        continue;
+      }
+
+      ctx.globalAlpha = finalAlpha;
+      ctx.fillStyle = index % 5 === 0 ? '#b8d7ff' : '#ead7aa';
+      ctx.beginPath();
+      ctx.arc(x, y, Math.max(0.8, particle.radius * (index % 7 === 0 ? 1.45 : 1)), 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    if (!staticFrame) {
+      drawParticleStreaks(particleState, width, height, animation.progress, preset, scale);
+      drawDividerGlint(width, height, animation.progress, preset.strength, scale);
+    }
+    ctx.restore();
+  }
+
+  function drawParticleStreaks(particleState, width, height, progress, preset, scale) {
+    const streakProgress = clampProgress((progress - 0.04) / 0.28);
+    const streakAlpha = Math.sin(streakProgress * Math.PI) * preset.strength;
+    if (streakAlpha <= 0.002) {
+      return;
+    }
+
+    ctx.lineCap = 'round';
+    ctx.lineWidth = Math.max(1, scale * 1.2);
+    for (let index = 0; index < preset.streakCount; index += 1) {
+      const particle = particleState.particles[index * 2];
+      if (!particle) {
+        continue;
+      }
+      const direction = index % 2 === 0 ? 1 : -1;
+      const length = (20 + index * 5) * scale;
+      const x = width * 0.5 + (particle.x - width * 0.5) * streakProgress;
+      const y = height * 0.3 + (particle.y - height * 0.3) * streakProgress;
+      ctx.globalAlpha = streakAlpha * (0.12 + index * 0.018);
+      ctx.strokeStyle = index % 3 === 0 ? '#b8d7ff' : '#ead7aa';
+      ctx.beginPath();
+      ctx.moveTo(x - length * direction, y + length * 0.18);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+    }
+  }
+
+  function drawDividerGlint(width, height, progress, strength, scale) {
+    const glintProgress = clampProgress((progress - 0.18) / 0.2);
+    if (glintProgress <= 0 || glintProgress >= 1) {
+      return;
+    }
+
+    const lineWidth = width * 0.34;
+    const x = width * 0.5 - lineWidth * 0.5 + lineWidth * glintProgress;
+    const y = height * 0.49;
+    const glow = ctx.createLinearGradient(x - 44 * scale, y, x + 44 * scale, y);
+    glow.addColorStop(0, 'rgba(234, 215, 170, 0)');
+    glow.addColorStop(0.5, `rgba(255, 246, 218, ${0.48 * strength})`);
+    glow.addColorStop(1, 'rgba(234, 215, 170, 0)');
+    ctx.globalAlpha = Math.sin(glintProgress * Math.PI);
+    ctx.fillStyle = glow;
+    ctx.fillRect(x - 44 * scale, y - scale, 88 * scale, Math.max(1, scale * 2));
   }
 
   function drawCenterOverlay(state, width, height, emblems, animation = getAnimatedOverlayState(1)) {
@@ -735,6 +850,10 @@
     exportButton.disabled = false;
     previewAnimationButton.disabled = false;
     render();
+    if (autoplayTestPreview) {
+      autoplayTestPreview = false;
+      requestAnimationFrame(() => playAnimationPreview());
+    }
   }
 
   function setUploadedImage(image, name) {
@@ -815,7 +934,7 @@
       return;
     }
 
-    render({ emblems: overlayAssets.highResEmblems });
+    render({ emblems: overlayAssets.highResEmblems, staticFrame: true });
     canvas.toBlob((blob) => {
       if (!blob) {
         activityMessage = '导出失败，请重试。';
@@ -841,12 +960,12 @@
     return Math.max(1, Math.round((durationMs / 1000) * videoSettings.fps));
   }
 
-  function renderAnimationFrame(frameIndex, frameCount, emblems) {
+  function renderAnimationFrame(frameIndex, frameCount, emblems, motionMode = currentMotionMode()) {
     const elapsedMs = (frameIndex / videoSettings.fps) * 1000;
     const progress = frameIndex >= frameCount - 1
       ? 1
       : getTimelineProgress(elapsedMs, getExportDurationMs(), uploadedMediaType);
-    render({ emblems, progress });
+    render({ emblems, progress, elapsedMs, motionMode, staticFrame: false });
   }
 
   async function prepareMediaFrame(frameIndex) {
@@ -868,8 +987,9 @@
     const { Muxer, ArrayBufferTarget } = await loadMp4Muxer();
     const frameCount = getVideoFrameCount();
     const frameDurationUs = Math.round(1_000_000 / videoSettings.fps);
+    const motionMode = currentMotionMode();
     await prepareMediaFrame(0);
-    renderAnimationFrame(0, frameCount, overlayAssets.highResEmblems);
+    renderAnimationFrame(0, frameCount, overlayAssets.highResEmblems, motionMode);
 
     if (canvas.width % 2 !== 0 || canvas.height % 2 !== 0) {
       throw new Error('MP4 export requires even canvas dimensions.');
@@ -911,7 +1031,7 @@
 
     for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
       await prepareMediaFrame(frameIndex);
-      renderAnimationFrame(frameIndex, frameCount, overlayAssets.highResEmblems);
+      renderAnimationFrame(frameIndex, frameCount, overlayAssets.highResEmblems, motionMode);
       const frame = new VideoFrame(canvas, {
         timestamp: frameIndex * frameDurationUs,
         duration: frameDurationUs,
@@ -944,6 +1064,7 @@
 
     const frameCount = getVideoFrameCount();
     const frameDurationMs = 1000 / videoSettings.fps;
+    const motionMode = currentMotionMode();
     const mimeType = MediaRecorder.isTypeSupported(videoSettings.webmMimeType)
       ? videoSettings.webmMimeType
       : 'video/webm';
@@ -970,7 +1091,7 @@
     }
     const track = stream.getVideoTracks()[0];
     for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
-      renderAnimationFrame(frameIndex, frameCount, overlayAssets.highResEmblems);
+      renderAnimationFrame(frameIndex, frameCount, overlayAssets.highResEmblems, motionMode);
       track?.requestFrame?.();
       if (frameIndex % 8 === 0) {
         activityMessage = `正在生成 WebM 备用视频 ${frameIndex + 1}/${frameCount}...`;
@@ -1057,6 +1178,7 @@
     const emblems = selectedHighResEmblemReady()
       ? overlayAssets.highResEmblems
       : overlayAssets.previewEmblems;
+    const motionMode = currentMotionMode();
     previewAnimationButton.disabled = true;
     previewAnimationButton.textContent = '预览中...';
     activityMessage = '正在预览动画效果。';
@@ -1065,7 +1187,7 @@
     function tick(now) {
       const elapsedMs = now - startedAt;
       const progress = getTimelineProgress(elapsedMs, previewDurationMs, uploadedMediaType);
-      render({ emblems, progress });
+      render({ emblems, progress, elapsedMs, motionMode, staticFrame: false });
       if (elapsedMs < previewDurationMs) {
         previewAnimationFrame = requestAnimationFrame(tick);
         return;
@@ -1112,6 +1234,16 @@
       const requestedEmblem = params.get('emblem');
       emblemSelect.value = normalizeEmblem(requestedEmblem);
     }
+    if (params.has('motionMode')) {
+      const requestedMotion = params.get('motionMode');
+      if (Object.hasOwn(MOTION_PRESETS, requestedMotion)) {
+        const motionControl = document.querySelector(`input[name="motionMode"][value="${requestedMotion}"]`);
+        if (motionControl) {
+          motionControl.checked = true;
+        }
+      }
+    }
+    autoplayTestPreview = params.get('autoplay') === '1';
     loadImageSource(safeName, safeName);
   }
 
@@ -1151,6 +1283,13 @@
 
     document.querySelectorAll('input[name="exportMode"]').forEach((control) => {
       control.addEventListener('change', updateExportButtonLabel);
+    });
+
+    document.querySelectorAll('input[name="motionMode"]').forEach((control) => {
+      control.addEventListener('change', () => {
+        stopAnimationPreview({ renderFinal: false });
+        render();
+      });
     });
 
     previewAnimationButton.addEventListener('click', playAnimationPreview);

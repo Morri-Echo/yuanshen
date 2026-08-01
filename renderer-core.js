@@ -31,6 +31,15 @@ const VIDEO_EXPORT_SETTINGS = Object.freeze({
   webmFileName: 'task-overlay-video.webm',
 });
 
+// Particle defaults are deliberately conservative so the effect stays subtle at 1080p
+// and does not grow without bound for large source canvases.
+const PARTICLE_DEFAULTS = Object.freeze({
+  density: 1 / 30_000,
+  minCount: 12,
+  maxCount: 96,
+  seed: 0x6d2b79f5,
+});
+
 function clampOpacity(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) {
@@ -80,6 +89,163 @@ function getAnimatedOverlayState(progress) {
     dividerProgress: easeOutCubic(rangeProgress(clamped, 0.02, 0.12)),
     taskBandProgress: easeOutCubic(rangeProgress(clamped, 0.17, 0.26)),
     continuationAlpha: easeOutCubic(rangeProgress(clamped, 0.17, 0.28)),
+  };
+}
+
+function normalizeParticleDimension(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) {
+    return 1;
+  }
+  return Math.max(1, number);
+}
+
+function normalizeParticleInteger(value, fallback, minimum = 0, maximum = Number.MAX_SAFE_INTEGER) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return fallback;
+  }
+  return Math.min(maximum, Math.max(minimum, Math.round(number)));
+}
+
+function normalizeParticleSeed(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.trunc(value) >>> 0;
+  }
+
+  const text = String(value ?? PARTICLE_DEFAULTS.seed);
+  let hash = 2_166_136_261;
+  for (let index = 0; index < text.length; index += 1) {
+    hash = Math.imul(hash ^ text.charCodeAt(index), 16_777_619);
+  }
+  return hash >>> 0;
+}
+
+function createParticleGenerator(seed) {
+  let state = normalizeParticleSeed(seed);
+  return () => {
+    state = (state + 1_835_511_229) >>> 0;
+    let value = state;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4_294_967_296;
+  };
+}
+
+function normalizeParticleRequest(width, height, progress, options) {
+  if (width && typeof width === 'object') {
+    const request = { ...width };
+    if (height && typeof height === 'object') {
+      Object.assign(request, height);
+    }
+    return {
+      width: request.width,
+      height: request.height,
+      progress: request.progress,
+      options: request,
+    };
+  }
+
+  if (progress && typeof progress === 'object') {
+    const request = { ...progress };
+    if (options && typeof options === 'object') {
+      Object.assign(request, options);
+    }
+    return {
+      width,
+      height,
+      progress: request.progress,
+      options: request,
+    };
+  }
+
+  if (options === undefined || options === null) {
+    return { width, height, progress, options: {} };
+  }
+  if (typeof options !== 'object') {
+    return { width, height, progress, options: { seed: options } };
+  }
+  return { width, height, progress, options };
+}
+
+function getParticleCount(width, height, options = {}) {
+  const request = normalizeParticleRequest(width, height, undefined, options);
+  const safeWidth = normalizeParticleDimension(request.width);
+  const safeHeight = normalizeParticleDimension(request.height);
+  const settings = request.options || {};
+  const minCount = normalizeParticleInteger(
+    settings.minCount,
+    PARTICLE_DEFAULTS.minCount,
+    0,
+    PARTICLE_DEFAULTS.maxCount
+  );
+  const maxCount = Math.max(
+    minCount,
+    normalizeParticleInteger(settings.maxCount, PARTICLE_DEFAULTS.maxCount, minCount, 4096)
+  );
+  const density = Number(settings.density);
+  const safeDensity = Number.isFinite(density) && density >= 0
+    ? density
+    : PARTICLE_DEFAULTS.density;
+  const requestedCount = Number.isFinite(Number(settings.count))
+    ? Number(settings.count)
+    : safeWidth * safeHeight * safeDensity;
+  return Math.min(maxCount, Math.max(minCount, Math.round(requestedCount)));
+}
+
+function getParticleState(width, height, progress = 1, options) {
+  const request = normalizeParticleRequest(width, height, progress, options);
+  const safeWidth = normalizeParticleDimension(request.width);
+  const safeHeight = normalizeParticleDimension(request.height);
+  const settings = request.options || {};
+  const clampedProgress = clampProgress(request.progress ?? 1);
+  const count = getParticleCount(safeWidth, safeHeight, settings);
+  const random = createParticleGenerator(settings.seed ?? PARTICLE_DEFAULTS.seed);
+  const elapsedMs = Number(settings.elapsedMs ?? settings.timeMs);
+  const timeSeconds = Number.isFinite(elapsedMs) ? Math.max(0, elapsedMs) / 1000 : 0;
+  const scale = Math.max(0.5, Math.min(2.5, Math.min(safeWidth / 1920, safeHeight / 1080)));
+  const particles = [];
+
+  for (let index = 0; index < count; index += 1) {
+    const baseX = random() * safeWidth;
+    const baseY = random() * safeHeight;
+    const radius = (0.65 + random() * 1.65) * scale;
+    const driftX = (random() - 0.5) * safeWidth * 0.018;
+    const driftY = (random() - 0.5) * safeHeight * 0.018;
+    const speed = 0.12 + random() * 0.3;
+    const phase = random() * Math.PI * 2;
+    const revealDelay = random() * 0.28;
+    const maxAlpha = 0.16 + random() * 0.34;
+    const twinkle = 0.72 + random() * 0.28;
+    const revealProgress = revealDelay >= 1
+      ? 1
+      : rangeProgress(clampedProgress, revealDelay, Math.min(1, revealDelay + 0.28));
+    const revealAlpha = clampedProgress <= 0 ? 0 : easeOutCubic(revealProgress);
+    const pulse = 0.88 + Math.sin(phase + timeSeconds * speed) * 0.12;
+    const alpha = maxAlpha * revealAlpha * pulse;
+    const driftPhase = phase + timeSeconds * speed;
+
+    particles.push({
+      x: Math.min(safeWidth, Math.max(0, baseX + Math.sin(driftPhase) * driftX)),
+      y: Math.min(safeHeight, Math.max(0, baseY + Math.cos(driftPhase * 0.87) * driftY)),
+      radius,
+      alpha,
+      maxAlpha,
+      twinkle,
+      phase,
+      driftX,
+      driftY,
+      speed,
+    });
+  }
+
+  return {
+    width: safeWidth,
+    height: safeHeight,
+    progress: clampedProgress,
+    elapsedMs: timeSeconds * 1000,
+    count,
+    particles,
   };
 }
 
@@ -181,10 +347,13 @@ if (typeof module !== 'undefined') {
   module.exports = {
     DEFAULTS,
     EMBLEM_KEYS,
+    PARTICLE_DEFAULTS,
     clampOpacity,
     clampProgress,
     createRenderState,
     getAnimatedOverlayState,
+    getParticleCount,
+    getParticleState,
     getMediaDimensions,
     getTimelineProgress,
     getVideoExportSettings,

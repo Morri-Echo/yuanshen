@@ -297,8 +297,10 @@
       emblemY,
       line1Y,
       line1Size,
+      line1MaxWidth,
       line2Y,
       line2Size,
+      line2MaxWidth,
       dividerY,
       dividerWidth,
       taskBandY,
@@ -308,6 +310,8 @@
       taskWidth,
       bottomY,
       continuationWidth,
+      continuationGlowHeight,
+      scale,
     } = layout;
 
     drawEmblemGlow(cx, emblemY, emblemSize * animation.emblemScale, animation.emblemAlpha);
@@ -315,12 +319,12 @@
     drawTextLine(
       state.line1,
       cx,
-      line1Y + animation.line1OffsetY,
+      line1Y + animation.line1OffsetY * scale,
       line1Size,
       700,
       '#ded0bb',
       0.95 * animation.line1Alpha,
-      width * 0.42
+      line1MaxWidth
     );
     drawTextLine(
       state.line2,
@@ -330,13 +334,13 @@
       850,
       '#fff8ed',
       animation.line2Alpha,
-      width * 0.47,
+      line2MaxWidth,
       { scale: animation.line2Scale }
     );
-    drawOrnamentDivider(cx, dividerY, dividerWidth * animation.dividerProgress, height, animation.dividerProgress);
+    drawOrnamentDivider(cx, dividerY, dividerWidth * animation.dividerProgress, scale, animation.dividerProgress);
     drawTaskBand(cx, taskBandY, taskBandWidth * animation.taskBandProgress, taskBandHeight);
     drawTaskCompleteText(state.line3, cx, taskY, taskWidth, animation.taskBandProgress);
-    drawTaskGlow(cx, bottomY, continuationWidth * 1.05, height * 0.032, '#d7bb86', 0.14 * animation.continuationAlpha);
+    drawTaskGlow(cx, bottomY, continuationWidth * 1.05, continuationGlowHeight, '#d7bb86', 0.14 * animation.continuationAlpha);
     drawCenteredAsset(overlayAssets.continuation, cx, bottomY, continuationWidth, null, 0.9 * animation.continuationAlpha);
   }
 
@@ -450,12 +454,12 @@
     };
   }
 
-  function drawOrnamentDivider(cx, cy, width, height, progress = 1) {
+  function drawOrnamentDivider(cx, cy, width, scale, progress = 1) {
     if (width <= 0 || progress <= 0) {
       return;
     }
     const lineGap = width * 0.075;
-    const diamond = Math.max(15, height * 0.019) * clampProgress(progress);
+    const diamond = 20.52 * scale * clampProgress(progress);
     const lineY = cy;
     const leftStart = cx - width / 2;
     const leftEnd = cx - lineGap;
@@ -464,14 +468,14 @@
 
     ctx.save();
     ctx.lineCap = 'round';
-    ctx.lineWidth = Math.max(1, height * 0.0019);
+    ctx.lineWidth = Math.max(1, 2.052 * scale);
     drawDividerLine(leftStart, lineY, leftEnd, lineY, false);
     drawDividerLine(rightStart, lineY, rightEnd, lineY, true);
 
     ctx.shadowColor = 'rgba(237, 220, 184, 0.5)';
-    ctx.shadowBlur = Math.max(4, height * 0.007);
+    ctx.shadowBlur = Math.max(2, 7.56 * scale);
     ctx.strokeStyle = 'rgba(226, 210, 182, 0.88)';
-    ctx.lineWidth = Math.max(2, height * 0.0024);
+    ctx.lineWidth = Math.max(1, 2.592 * scale);
     drawDiamond(cx - diamond * 0.32, cy, diamond);
     drawDiamond(cx + diamond * 0.32, cy, diamond);
     ctx.restore();
@@ -1240,6 +1244,16 @@
         const motionControl = document.querySelector(`input[name="motionMode"][value="${requestedMotion}"]`);
         if (motionControl) {
           motionControl.checked = true;
+        }
+      }
+    }
+    if (params.has('sizeMode')) {
+      const requestedSize = params.get('sizeMode');
+      const allowedSizes = new Set(['16:9', '4:3', '9:16', 'source']);
+      if (allowedSizes.has(requestedSize)) {
+        const sizeControl = document.querySelector(`input[name="sizeMode"][value="${requestedSize}"]`);
+        if (sizeControl) {
+          sizeControl.checked = true;
         }
       }
     }

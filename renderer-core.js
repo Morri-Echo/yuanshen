@@ -21,6 +21,35 @@ const DEFAULTS = {
   overlayOpacity: 0.62,
 };
 
+const OUTPUT_SIZES = Object.freeze({
+  '16:9': Object.freeze({ width: 1920, height: 1080 }),
+  '4:3': Object.freeze({ width: 1440, height: 1080 }),
+  '9:16': Object.freeze({ width: 1080, height: 1920 }),
+});
+
+const OVERLAY_DESIGN = Object.freeze({
+  width: 1920,
+  height: 1080,
+  emblemSize: 178,
+  emblemY: 216,
+  line1Y: 365.04,
+  line1Size: 35.52,
+  line1MaxWidth: 806.4,
+  line2Y: 442.8,
+  line2Size: 65.28,
+  line2MaxWidth: 902.4,
+  dividerY: 529.2,
+  dividerWidth: 652.8,
+  taskBandY: 577.8,
+  taskBandWidth: 489.6,
+  taskBandHeight: 41.04,
+  taskY: 577.8,
+  taskWidth: 215.04,
+  bottomY: 909.36,
+  continuationWidth: 230.4,
+  continuationGlowHeight: 34.56,
+});
+
 const VIDEO_EXPORT_SETTINGS = Object.freeze({
   durationMs: 3200,
   fps: 30,
@@ -288,10 +317,8 @@ function getCanvasSize(mode, media) {
   if (mode === 'source' && dimensions) {
     return dimensions;
   }
-  return {
-    width: DEFAULTS.outputWidth,
-    height: DEFAULTS.outputHeight,
-  };
+  const preset = OUTPUT_SIZES[mode] || OUTPUT_SIZES[DEFAULTS.mode];
+  return { ...preset };
 }
 
 function getCoverRect(imageWidth, imageHeight, canvasWidth, canvasHeight) {
@@ -320,26 +347,31 @@ function createRenderState(overrides = {}) {
 }
 
 function getOverlayLayout(width, height) {
-  const scale = Math.min(width / 1920, height / 1080);
-  const emblemSize = Math.min(Math.max(width * 0.102, 116 * scale), 178 * scale);
+  const scale = Math.min(width / OVERLAY_DESIGN.width, height / OVERLAY_DESIGN.height);
+  const originY = (height - OVERLAY_DESIGN.height * scale) / 2;
+  const scaled = (value) => value * scale;
+  const y = (value) => originY + scaled(value);
   return {
     scale,
     cx: width / 2,
-    emblemSize,
-    emblemY: height * 0.2,
-    line1Y: height * 0.338,
-    line1Size: Math.max(18, width * 0.0185),
-    line2Y: height * 0.41,
-    line2Size: Math.max(28, width * 0.034),
-    dividerY: height * 0.49,
-    dividerWidth: width * 0.34,
-    taskBandY: height * 0.535,
-    taskBandWidth: width * 0.255,
-    taskBandHeight: height * 0.038,
-    taskY: height * 0.535,
-    taskWidth: width * 0.112,
-    bottomY: height * 0.842,
-    continuationWidth: width * 0.12,
+    emblemSize: scaled(OVERLAY_DESIGN.emblemSize),
+    emblemY: y(OVERLAY_DESIGN.emblemY),
+    line1Y: y(OVERLAY_DESIGN.line1Y),
+    line1Size: scaled(OVERLAY_DESIGN.line1Size),
+    line1MaxWidth: scaled(OVERLAY_DESIGN.line1MaxWidth),
+    line2Y: y(OVERLAY_DESIGN.line2Y),
+    line2Size: scaled(OVERLAY_DESIGN.line2Size),
+    line2MaxWidth: scaled(OVERLAY_DESIGN.line2MaxWidth),
+    dividerY: y(OVERLAY_DESIGN.dividerY),
+    dividerWidth: scaled(OVERLAY_DESIGN.dividerWidth),
+    taskBandY: y(OVERLAY_DESIGN.taskBandY),
+    taskBandWidth: scaled(OVERLAY_DESIGN.taskBandWidth),
+    taskBandHeight: scaled(OVERLAY_DESIGN.taskBandHeight),
+    taskY: y(OVERLAY_DESIGN.taskY),
+    taskWidth: scaled(OVERLAY_DESIGN.taskWidth),
+    bottomY: y(OVERLAY_DESIGN.bottomY),
+    continuationWidth: scaled(OVERLAY_DESIGN.continuationWidth),
+    continuationGlowHeight: scaled(OVERLAY_DESIGN.continuationGlowHeight),
   };
 }
 
@@ -347,6 +379,7 @@ if (typeof module !== 'undefined') {
   module.exports = {
     DEFAULTS,
     EMBLEM_KEYS,
+    OUTPUT_SIZES,
     PARTICLE_DEFAULTS,
     clampOpacity,
     clampProgress,

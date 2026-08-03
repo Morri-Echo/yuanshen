@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const {
   DEFAULTS,
   EMBLEM_KEYS,
+  OUTPUT_SIZES,
   PARTICLE_DEFAULTS,
   clampOpacity,
   clampProgress,
@@ -35,6 +36,19 @@ test('16:9 mode uses 1920x1080 output', () => {
   });
 });
 
+test('fixed aspect modes expose standard export dimensions', () => {
+  assert.deepEqual(OUTPUT_SIZES['4:3'], { width: 1440, height: 1080 });
+  assert.deepEqual(OUTPUT_SIZES['9:16'], { width: 1080, height: 1920 });
+  assert.deepEqual(getCanvasSize('4:3', { width: 640, height: 480 }), {
+    width: 1440,
+    height: 1080,
+  });
+  assert.deepEqual(getCanvasSize('9:16', { width: 1920, height: 1080 }), {
+    width: 1080,
+    height: 1920,
+  });
+});
+
 test('source mode follows uploaded image dimensions', () => {
   assert.deepEqual(getCanvasSize('source', { width: 1200, height: 800 }), {
     width: 1200,
@@ -59,6 +73,14 @@ test('cover rect center-crops a tall source into 16:9 canvas', () => {
   assert.equal(rect.dh, 1920);
   assert.equal(rect.dx, 0);
   assert.equal(rect.dy, -420);
+});
+
+test('cover rect preserves source proportions for a portrait export', () => {
+  const rect = getCoverRect(1920, 1080, 1080, 1920);
+  assert.equal(rect.dh, 1920);
+  assert.equal(rect.dy, 0);
+  assert.equal(rect.dw / rect.dh, 1920 / 1080);
+  assert.equal(rect.dx, (1080 - rect.dw) / 2);
 });
 
 test('default render state matches requested overlay defaults', () => {
@@ -307,4 +329,24 @@ test('fixed task section uses reference-like restrained widths', () => {
   assert.ok(layout.taskBandWidth >= 485 && layout.taskBandWidth <= 495);
   assert.ok(layout.taskWidth >= 210 && layout.taskWidth <= 220);
   assert.ok(layout.continuationWidth >= 220 && layout.continuationWidth <= 240);
+});
+
+test('overlay elements and spacing use one uniform scale in every fixed ratio', () => {
+  const landscape = getOverlayLayout(1920, 1080);
+  for (const [width, height] of [[1440, 1080], [1080, 1920]]) {
+    const layout = getOverlayLayout(width, height);
+    const expectedScale = Math.min(width / 1920, height / 1080);
+    assert.equal(layout.scale, expectedScale);
+    assert.equal(layout.emblemSize, landscape.emblemSize * expectedScale);
+    assert.equal(layout.line1Size, landscape.line1Size * expectedScale);
+    assert.equal(layout.line2Size, landscape.line2Size * expectedScale);
+    assert.equal(layout.dividerWidth, landscape.dividerWidth * expectedScale);
+    const titleGap = (landscape.line2Y - landscape.line1Y) * expectedScale;
+    const dividerGap = (landscape.dividerY - landscape.line2Y) * expectedScale;
+    assert.ok(Math.abs(layout.line2Y - layout.line1Y - titleGap) < 1e-9);
+    assert.ok(Math.abs(layout.dividerY - layout.line2Y - dividerGap) < 1e-9);
+    assert.equal(layout.cx, width / 2);
+    const groupMidpoint = (layout.emblemY + layout.bottomY) / 2;
+    assert.ok(Math.abs(groupMidpoint - (height / 2 + 22.68 * expectedScale)) < 1e-9);
+  }
 });

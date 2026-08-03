@@ -96,6 +96,13 @@ assert.match(
   'image export should remain the default export mode'
 );
 
+for (const sizeMode of ['16:9', '4:3', '9:16', 'source']) {
+  assert.ok(
+    html.includes(`name="sizeMode" value="${sizeMode}"`),
+    `size mode ${sizeMode} should be available`
+  );
+}
+
 assert.match(
   html,
   /<input type="radio" name="exportMode" value="video">\s*<span>[^<]*<\/span>/u,

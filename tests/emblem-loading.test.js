@@ -125,14 +125,23 @@ function createHarness(options = {}) {
     statusText: createElement({ textContent: '上传图片后可导出生成结果。' }),
   };
 
-  const optionsByKey = Object.fromEntries(
-    emblemKeys.map((key) => [key, createElement({ value: key })])
+  const emblemInputs = Object.fromEntries(
+    emblemKeys.map((key) => [
+      key,
+      createElement({ value: key, checked: key === (options.initialEmblem || 'mengdei') }),
+    ])
   );
-  elements.emblemSelect = createElement({ value: options.initialEmblem || 'mengdei' });
-  elements.emblemSelect.querySelector = (selector) => {
-    const match = selector.match(/^option\[value="([^"]+)"\]$/u);
-    return match ? optionsByKey[match[1]] || null : null;
+  elements.emblemPicker = createElement();
+  elements.emblemPicker.querySelector = (selector) => {
+    if (/^input\[name="emblem"\]:checked$/u.test(selector)) {
+      return emblemKeys.map((key) => emblemInputs[key]).find((input) => input.checked) || null;
+    }
+    const match = selector.match(/^input\[name="emblem"\]\[value="([^"]+)"\]$/u);
+    return match ? emblemInputs[match[1]] || null : null;
   };
+  elements.emblemPicker.querySelectorAll = (selector) => (
+    /^input\[name="emblem"\]$/u.test(selector) ? emblemKeys.map((key) => emblemInputs[key]) : []
+  );
 
   let renderCount = 0;
   const mainContext = createDrawingContext(drawCalls, () => {
@@ -312,7 +321,7 @@ function createHarness(options = {}) {
     drawCalls,
     maskDrawCalls,
     elements,
-    optionsByKey,
+    emblemInputs,
     scratchCanvases,
     objectUrls,
     get renderCount() {
@@ -338,12 +347,23 @@ function test(name, callback) {
   tests.push([name, callback]);
 }
 
+function selectedEmblem(harness) {
+  return harness.elements.emblemPicker.querySelector('input[name="emblem"]:checked')?.value;
+}
+
+function chooseEmblem(harness, key) {
+  for (const input of harness.elements.emblemPicker.querySelectorAll('input[name="emblem"]')) {
+    input.checked = input.value === key;
+  }
+  harness.elements.emblemPicker.dispatch('change');
+}
+
 test('every canonical emblem key previews from its small asset path', async () => {
   for (const { key, previewSrc } of emblemCases) {
     const harness = createHarness({ search: `?testImage=query.png&emblem=${key}` });
     await harness.flush();
 
-    assert.equal(harness.elements.emblemSelect.value, key);
+    assert.equal(selectedEmblem(harness), key);
     assert.ok(
       harness.maskDrawCalls.some(([source]) => source?.src === previewSrc),
       `${key} should draw ${previewSrc} into the preview gold emblem mask`
@@ -402,10 +422,10 @@ test('every failed preview emblem reports its exact label while other assets rem
     });
     await harness.flush();
 
-    assert.equal(harness.optionsByKey[key].disabled, true);
+    assert.equal(harness.emblemInputs[key].disabled, true);
     for (const availableKey of emblemKeys.filter((candidate) => candidate !== key)) {
       assert.equal(
-        harness.optionsByKey[availableKey].disabled,
+        harness.emblemInputs[availableKey].disabled,
         false,
         `${availableKey} should remain enabled when ${key} fails`
       );
@@ -415,10 +435,10 @@ test('every failed preview emblem reports its exact label while other assets rem
     const fallbackSource = emblemCases.find(
       ({ key: candidate }) => candidate === expectedFallback
     ).previewSrc;
-    assert.equal(harness.elements.emblemSelect.value, expectedFallback);
+    assert.equal(selectedEmblem(harness), expectedFallback);
     if (key === 'mengdei') {
       assert.equal(
-        harness.elements.emblemSelect.value,
+        selectedEmblem(harness),
         'liyue',
         'the failed default emblem should fall back to Liyue'
       );
@@ -498,12 +518,11 @@ test('export uses the selected high-res emblem after it loads', async () => {
 
 test('selection changes draw the selected asset and query selects nata', async () => {
   const harness = createHarness({ search: '?testImage=query.png&emblem=nata' });
-  assert.equal(harness.elements.emblemSelect.value, 'nata');
+  assert.equal(selectedEmblem(harness), 'nata');
   await harness.flush();
 
   harness.drawCalls.length = 0;
-  harness.elements.emblemSelect.value = 'liyue';
-  harness.elements.emblemSelect.dispatch('change');
+  chooseEmblem(harness, 'liyue');
   assert.ok(
     harness.maskDrawCalls.some(([source]) => source?.src === 'assets/preview/liyue.png'),
     'changing the selection should draw the Liyue emblem'
@@ -575,7 +594,7 @@ test('a render exception does not disable a successfully loaded emblem', async (
   const harness = createHarness({ throwOnRenderCount: 2 });
   await harness.flush();
 
-  assert.equal(harness.optionsByKey.mengdei.disabled, false);
+  assert.equal(harness.emblemInputs.mengdei.disabled, false);
 });
 
 test('large visible-bound scans are downsampled and map back to source bounds', async () => {

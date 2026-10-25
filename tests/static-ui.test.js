@@ -24,15 +24,15 @@ const expectedEmblemOptions = [
 ];
 
 const emblemFieldMarkup = html.match(
-  /<label class="field">\s*<span>任务徽记<\/span>\s*<select id="emblemSelect">([\s\S]*?)<\/select>\s*<\/label>/u
+  /<fieldset class="field radio-group emblem-field">\s*<legend>任务徽记<\/legend>\s*<div id="emblemPicker"[^>]*>([\s\S]*?)<\/div>\s*<\/fieldset>/u
 );
 assert.ok(
   emblemFieldMarkup,
-  'emblemSelect and its label text should be grouped in the same field label'
+  'emblem picker and its legend text should be grouped in the same fieldset'
 );
 
 const actualEmblemOptions = [...emblemFieldMarkup[1].matchAll(
-  /<option value="([^"]+)">([^<]+)<\/option>/gu
+  /<input type="radio" name="emblem" value="([^"]+)"[^>]*>\s*<img src="assets\/preview\/[^"]+"[^>]*>\s*<span>([^<]+)<\/span>/gu
 )].map((match) => [match[1], match[2]]);
 
 assert.deepEqual(
@@ -42,14 +42,14 @@ assert.deepEqual(
 );
 
 const opacityInputPosition = html.indexOf('id="overlayOpacityInput"');
-const emblemSelectPosition = html.indexOf('id="emblemSelect"');
+const emblemSelectPosition = html.indexOf('id="emblemPicker"');
 const exportButtonPosition = html.indexOf('id="exportButton"');
 const previewAnimationButtonPosition = html.indexOf('id="previewAnimationButton"');
 const exportModePosition = html.indexOf('name="exportMode"');
 const motionModePosition = html.indexOf('name="motionMode"');
 
 assert.ok(opacityInputPosition >= 0, 'overlayOpacityInput should exist');
-assert.ok(emblemSelectPosition >= 0, 'emblemSelect should exist');
+assert.ok(emblemSelectPosition >= 0, 'emblemPicker should exist');
 assert.ok(exportButtonPosition >= 0, 'exportButton should exist');
 assert.ok(previewAnimationButtonPosition >= 0, 'previewAnimationButton should exist');
 assert.ok(exportModePosition >= 0, 'exportMode segmented controls should exist');
@@ -333,8 +333,8 @@ for (const assetPath of expectedPreviewEmblemAssetPaths) {
 
 assert.match(
   script,
-  /emblemSelect\.addEventListener\(\s*['"]change['"]\s*,\s*\(\)\s*=>\s*\{[\s\S]*?stopAnimationPreview[\s\S]*?render\(\);[\s\S]*?\}\s*\)/u,
-  'changing emblemSelect should stop animation preview and render the selected emblem immediately'
+  /emblemPicker\.addEventListener\(\s*['"]change['"]\s*,\s*\(\)\s*=>\s*\{[\s\S]*?stopAnimationPreview[\s\S]*?render\(\);[\s\S]*?\}\s*\)/u,
+  'changing the emblem picker should stop animation preview and render the selected emblem immediately'
 );
 
 assert.match(
@@ -345,7 +345,7 @@ assert.match(
 
 assert.match(
   script,
-  /option\.disabled\s*=\s*true/u,
+  /input\.disabled\s*=\s*true/u,
   'an emblem option should be disabled when its asset fails to load'
 );
 

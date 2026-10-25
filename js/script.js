@@ -25,7 +25,7 @@
   const overlayColorInput = document.getElementById('overlayColorInput');
   const overlayOpacityInput = document.getElementById('overlayOpacityInput');
   const opacityValue = document.getElementById('opacityValue');
-  const emblemSelect = document.getElementById('emblemSelect');
+  const emblemPicker = document.getElementById('emblemPicker');
   const previewAnimationButton = document.getElementById('previewAnimationButton');
   const exportButton = document.getElementById('exportButton');
   const statusText = document.getElementById('statusText');
@@ -106,10 +106,31 @@
     return Object.hasOwn(MOTION_PRESETS, requested) ? requested : 'soft';
   }
 
+  function getSelectedEmblem() {
+    return emblemPicker.querySelector('input[name="emblem"]:checked')?.value || DEFAULTS.emblem;
+  }
+
+  function setSelectedEmblem(key) {
+    const target = emblemPicker.querySelector(`input[name="emblem"][value="${key}"]`);
+    if (!target || target.disabled) {
+      return;
+    }
+    for (const input of emblemPicker.querySelectorAll('input[name="emblem"]')) {
+      input.checked = input === target;
+    }
+  }
+
+  function disableEmblemOption(key) {
+    const input = emblemPicker.querySelector(`input[name="emblem"][value="${key}"]`);
+    if (input) {
+      input.disabled = true;
+    }
+  }
+
   function currentState() {
     return createRenderState({
       mode: currentMode(),
-      emblem: emblemSelect.value,
+      emblem: getSelectedEmblem(),
       line1: line1Input.value.trim() || DEFAULTS.line1,
       line2: line2Input.value.trim() || DEFAULTS.line2,
       overlayColor: overlayColorInput.value,
@@ -149,7 +170,7 @@
       drawPlaceholder(width, height);
     }
 
-    ctx.fillStyle = hexToRgba(state.overlayColor, state.overlayOpacity * animation.overlayAlpha);
+    ctx.fillStyle = colorToRgba(state.overlayColor, state.overlayOpacity * animation.overlayAlpha);
     ctx.fillRect(0, 0, width, height);
     drawVignette(width, height, animation.overlayAlpha);
     drawParticleField(width, height, animation, elapsedMs, motionMode, staticFrame);
@@ -665,14 +686,6 @@
     return fitted;
   }
 
-  function hexToRgba(hex, opacity) {
-    const clean = hex.replace('#', '');
-    const r = parseInt(clean.slice(0, 2), 16);
-    const g = parseInt(clean.slice(2, 4), 16);
-    const b = parseInt(clean.slice(4, 6), 16);
-    return `rgba(${r}, ${g}, ${b}, ${clampOpacity(opacity)})`;
-  }
-
   function colorToRgba(hex, opacity) {
     const clean = hex.replace('#', '');
     const r = parseInt(clean.slice(0, 2), 16);
@@ -701,21 +714,18 @@
     } catch {
       failedKeys.add(key);
       if (disableOnFailure) {
-        const option = emblemSelect.querySelector(`option[value="${key}"]`);
-        if (option) {
-          option.disabled = true;
-        }
+        disableEmblemOption(key);
       }
       return;
     }
 
     targetMap[key] = { image, bounds };
-    if (renderSelected && emblemSelect.value === key) {
+    if (renderSelected && getSelectedEmblem() === key) {
       render();
     }
   }
 
-  async function loadPreviewEmblemAssets(priorityKey = emblemSelect.value) {
+  async function loadPreviewEmblemAssets(priorityKey = getSelectedEmblem()) {
     const failedKeys = new Set();
     const firstKey = normalizeEmblem(priorityKey);
     await loadSingleEmblemAsset(firstKey, failedKeys, PREVIEW_EMBLEM_ASSETS, overlayAssets.previewEmblems);
@@ -727,8 +737,8 @@
     );
 
     const availableKeys = EMBLEM_KEYS.filter((key) => overlayAssets.previewEmblems[key]);
-    if (availableKeys.length > 0 && !availableKeys.includes(emblemSelect.value)) {
-      emblemSelect.value = availableKeys[0];
+    if (availableKeys.length > 0 && !availableKeys.includes(getSelectedEmblem())) {
+      setSelectedEmblem(availableKeys[0]);
       render();
     }
 
@@ -745,7 +755,7 @@
     updateStatusText();
   }
 
-  async function loadHighResEmblemAssets(priorityKey = emblemSelect.value) {
+  async function loadHighResEmblemAssets(priorityKey = getSelectedEmblem()) {
     const failedKeys = new Set();
     const firstKey = normalizeEmblem(priorityKey);
     highResLoadState.active = true;
@@ -788,8 +798,8 @@
       assetWarning = '固定素材加载失败，请检查 assets 目录。';
       updateStatusText();
     });
-    loadHighResEmblemAssets(emblemSelect.value);
-    await loadPreviewEmblemAssets(emblemSelect.value);
+    loadHighResEmblemAssets(getSelectedEmblem());
+    await loadPreviewEmblemAssets(getSelectedEmblem());
     render();
     await continuationLoad;
   }
@@ -1236,7 +1246,7 @@
     }
     if (params.has('emblem')) {
       const requestedEmblem = params.get('emblem');
-      emblemSelect.value = normalizeEmblem(requestedEmblem);
+      setSelectedEmblem(normalizeEmblem(requestedEmblem));
     }
     if (params.has('motionMode')) {
       const requestedMotion = params.get('motionMode');
@@ -1290,7 +1300,7 @@
       });
     });
 
-    emblemSelect.addEventListener('change', () => {
+    emblemPicker.addEventListener('change', () => {
       stopAnimationPreview({ renderFinal: false });
       render();
     });

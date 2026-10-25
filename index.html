@@ -82,24 +82,76 @@
             <input id="overlayOpacityInput" type="range" min="0" max="1" step="0.01" value="0.62">
           </label>
 
-          <label class="field">
-            <span>任务徽记</span>
-            <select id="emblemSelect">
-              <option value="mengdei">蒙德</option>
-              <option value="liyue">璃月</option>
-              <option value="daoqi">稻妻</option>
-              <option value="xuni">须弥</option>
-              <option value="fengdan">枫丹</option>
-              <option value="nata">纳塔</option>
-              <option value="nuodekalai">空月之歌</option>
-              <option value="zhidong">至冬</option>
-              <option value="dachishahai">大赤沙海</option>
-              <option value="chenyugu">沉玉谷</option>
-              <option value="youyoudujiacun">悠悠度假村</option>
-              <option value="kongzhishendian">空之神殿</option>
-              <option value="huanxiangzhenjinjushi">幻想真境剧诗</option>
-            </select>
-          </label>
+          <fieldset class="field radio-group emblem-field">
+            <legend>任务徽记</legend>
+            <div id="emblemPicker" class="emblem-picker">
+              <label class="emblem-option">
+                <input type="radio" name="emblem" value="mengdei" checked>
+                <img src="assets/preview/mengdei.png" alt="" draggable="false">
+                <span>蒙德</span>
+              </label>
+              <label class="emblem-option">
+                <input type="radio" name="emblem" value="liyue">
+                <img src="assets/preview/liyue.png" alt="" draggable="false">
+                <span>璃月</span>
+              </label>
+              <label class="emblem-option">
+                <input type="radio" name="emblem" value="daoqi">
+                <img src="assets/preview/daoqi.png" alt="" draggable="false">
+                <span>稻妻</span>
+              </label>
+              <label class="emblem-option">
+                <input type="radio" name="emblem" value="xuni">
+                <img src="assets/preview/xuni.png" alt="" draggable="false">
+                <span>须弥</span>
+              </label>
+              <label class="emblem-option">
+                <input type="radio" name="emblem" value="fengdan">
+                <img src="assets/preview/fengdan.png" alt="" draggable="false">
+                <span>枫丹</span>
+              </label>
+              <label class="emblem-option">
+                <input type="radio" name="emblem" value="nata">
+                <img src="assets/preview/nata.png" alt="" draggable="false">
+                <span>纳塔</span>
+              </label>
+              <label class="emblem-option">
+                <input type="radio" name="emblem" value="nuodekalai">
+                <img src="assets/preview/nuodekalai.png" alt="" draggable="false">
+                <span>空月之歌</span>
+              </label>
+              <label class="emblem-option">
+                <input type="radio" name="emblem" value="zhidong">
+                <img src="assets/preview/zhidong.png" alt="" draggable="false">
+                <span>至冬</span>
+              </label>
+              <label class="emblem-option">
+                <input type="radio" name="emblem" value="dachishahai">
+                <img src="assets/preview/dachishahai.png" alt="" draggable="false">
+                <span>大赤沙海</span>
+              </label>
+              <label class="emblem-option">
+                <input type="radio" name="emblem" value="chenyugu">
+                <img src="assets/preview/chenyugu.png" alt="" draggable="false">
+                <span>沉玉谷</span>
+              </label>
+              <label class="emblem-option">
+                <input type="radio" name="emblem" value="youyoudujiacun">
+                <img src="assets/preview/youyoudujiacun.png" alt="" draggable="false">
+                <span>悠悠度假村</span>
+              </label>
+              <label class="emblem-option">
+                <input type="radio" name="emblem" value="kongzhishendian">
+                <img src="assets/preview/kongzhishendian.png" alt="" draggable="false">
+                <span>空之神殿</span>
+              </label>
+              <label class="emblem-option">
+                <input type="radio" name="emblem" value="huanxiangzhenjinjushi">
+                <img src="assets/preview/huanxiangzhenjinjushi.png" alt="" draggable="false">
+                <span>幻想真境剧诗</span>
+              </label>
+            </div>
+          </fieldset>
 
           <fieldset class="field radio-group motion-mode-group">
             <legend>粒子效果</legend>

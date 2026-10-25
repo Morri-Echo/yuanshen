@@ -17,7 +17,7 @@ const {
   getCanvasSize,
   getCoverRect,
   normalizeEmblem,
-} = require('../renderer-core.js');
+} = require('../js/renderer-core.js');
 
 function test(name, fn) {
   try {

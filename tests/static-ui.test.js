@@ -3,9 +3,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const html = fs.readFileSync(path.resolve(__dirname, '..', 'index.html'), 'utf8');
-const script = fs.readFileSync(path.resolve(__dirname, '..', 'script.js'), 'utf8');
-const editorParticles = fs.readFileSync(path.resolve(__dirname, '..', 'editor-particles.js'), 'utf8');
-const styles = fs.readFileSync(path.resolve(__dirname, '..', 'styles.css'), 'utf8');
+const script = fs.readFileSync(path.resolve(__dirname, '..', 'js', 'script.js'), 'utf8');
+const editorParticles = fs.readFileSync(path.resolve(__dirname, '..', 'js', 'editor-particles.js'), 'utf8');
+const styles = fs.readFileSync(path.resolve(__dirname, '..', 'css', 'styles.css'), 'utf8');
 
 const expectedEmblemOptions = [
   ['mengdei', '蒙德'],
@@ -68,12 +68,12 @@ assert.equal(
   'the previous GIF skin should no longer be referenced'
 );
 assert.ok(
-  html.includes('<script src="editor-particles.js"></script>'),
+  html.includes('<script src="js/editor-particles.js"></script>'),
   'the editor particle layer should be loaded'
 );
 assert.ok(
-  html.indexOf('<script src="script.js"></script>')
-    < html.indexOf('<script src="editor-particles.js"></script>'),
+  html.indexOf('<script src="js/script.js"></script>')
+    < html.indexOf('<script src="js/editor-particles.js"></script>'),
   'capture mode should be established before the editor particle layer initializes'
 );
 assert.match(

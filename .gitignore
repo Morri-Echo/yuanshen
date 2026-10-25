@@ -11,7 +11,7 @@ outputs/edge-profile-temp/
 # Local agent metadata and planning notes
 .agents/
 .codex/
-docs/superpowers/
+docs/plans/
 .worktrees/
 
 # Operating-system and editor files

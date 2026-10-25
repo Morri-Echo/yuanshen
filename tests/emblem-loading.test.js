@@ -4,8 +4,8 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const root = path.resolve(__dirname, '..');
-const coreSource = fs.readFileSync(path.join(root, 'renderer-core.js'), 'utf8');
-const scriptSource = fs.readFileSync(path.join(root, 'script.js'), 'utf8');
+const coreSource = fs.readFileSync(path.join(root, 'js', 'renderer-core.js'), 'utf8');
+const scriptSource = fs.readFileSync(path.join(root, 'js', 'script.js'), 'utf8');
 const emblemCases = [
   { key: 'mengdei', label: '蒙德', src: 'assets/mengdei.png', previewSrc: 'assets/preview/mengdei.png' },
   { key: 'liyue', label: '璃月', src: 'assets/liyue.png', previewSrc: 'assets/preview/liyue.png' },

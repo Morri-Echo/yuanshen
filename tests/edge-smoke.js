@@ -26,7 +26,7 @@ function fetchStatus(url) {
 async function main() {
   assert.equal(fs.existsSync(edgePath), true, 'Microsoft Edge is required for this smoke test');
   assert.equal(await fetchStatus(`${origin}/index.html`), 200);
-  assert.equal(await fetchStatus(`${origin}/2.jpg`), 200);
+  assert.equal(await fetchStatus(`${origin}/tests/fixtures/2.jpg`), 200);
 
   fs.mkdirSync(outputDir, { recursive: true });
   const runId = crypto.randomBytes(8).toString('hex');
@@ -41,7 +41,7 @@ async function main() {
     screenshotPaths.push(screenshotPath);
 
     try {
-      const url = `${origin}/index.html?testImage=2.jpg&capture=1&emblem=${emblemKey}`;
+      const url = `${origin}/index.html?testImage=tests/fixtures/2.jpg&capture=1&emblem=${emblemKey}`;
       const result = spawnSync(edgePath, [
         '--headless=new',
         '--disable-gpu',

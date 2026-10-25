@@ -1224,8 +1224,8 @@
     if (!testImage) {
       return;
     }
-    const safeName = testImage.replace(/[^a-zA-Z0-9._-]/g, '');
-    if (!safeName) {
+    const safeName = testImage.replace(/[^a-zA-Z0-9._\-/]/g, '');
+    if (!safeName || safeName.includes('..') || safeName.startsWith('/')) {
       return;
     }
     if (params.has('line1')) {

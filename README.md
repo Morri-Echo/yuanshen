@@ -2,6 +2,8 @@
 
 一个无需后端的本地图片与视频合成网页。上传媒体后，可以编辑任务标题、调整遮罩和粒子效果，并导出带有任务完成风格叠层的 PNG 图片或动画视频。
 
+当前版本：**1.0**（稳定版）
+
 ![生成效果示例](outputs/task-overlay-sample.png)
 
 ## 功能
@@ -57,18 +59,23 @@ http://127.0.0.1:8000/index.html
 
 ```text
 .
+├─ index.html                    页面结构
+├─ js/                           页面脚本
+│  ├─ renderer-core.js           渲染状态、尺寸和动画计算
+│  ├─ script.js                  媒体加载、Canvas 绘制与导出
+│  └─ editor-particles.js        编辑器 3D 景深粒子和背景视频控制
+├─ css/
+│  └─ styles.css                 工作台与响应式界面样式
 ├─ assets/                       徽记、装饰和轻量工作台背景
 │  └─ preview/                   编辑器预览用的小尺寸徽记
+├─ docs/
+│  ├─ reference/                 视觉参考图
+│  └─ specs/                     功能设计说明
+├─ tests/                        Node.js 单元测试与 Edge 冒烟测试
+│  └─ fixtures/                  冒烟测试上传用图片
 ├─ outputs/
 │  └─ task-overlay-sample.png    README 展示图
-├─ tests/                        Node.js 单元测试与 Edge 冒烟测试
-├─ editor-particles.js           编辑器 3D 景深粒子和背景视频控制
-├─ index.html                    页面结构
-├─ renderer-core.js              渲染状态、尺寸和动画计算
-├─ script.js                     媒体加载、Canvas 绘制与导出
-├─ styles.css                    工作台与响应式界面样式
-├─ 1.png                         视觉参考图
-└─ 2.jpg                         Edge 冒烟测试图片
+└─ samples/                      本地示例与素材视频（不入库）
 ```
 
 ## 验证
@@ -76,8 +83,8 @@ http://127.0.0.1:8000/index.html
 基础测试需要本机已安装 Node.js：
 
 ```powershell
-node --check editor-particles.js
-node --check script.js
+node --check js/editor-particles.js
+node --check js/script.js
 node tests\renderer-core.test.js
 node tests\clean-assets.test.js
 node tests\static-ui.test.js

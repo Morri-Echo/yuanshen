@@ -43,6 +43,12 @@ async function main() {
   assert.equal(await fetchStatus(`${origin}/tests/fixtures/2.jpg`), 200);
 
   fs.mkdirSync(outputDir, { recursive: true });
+  // 上一次运行被中断时，finally 里的 profile 清理不会执行，这里先扫掉遗留
+  for (const entry of fs.readdirSync(outputDir)) {
+    if (entry.startsWith('edge-profile-')) {
+      fs.rmSync(path.join(outputDir, entry), { recursive: true, force: true });
+    }
+  }
   const runId = crypto.randomBytes(8).toString('hex');
   const profilePaths = [];
   const screenshotPaths = [];

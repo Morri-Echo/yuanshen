@@ -12,7 +12,7 @@
 - 编辑画面中的两行任务文字。
 - 选择固定 `16:9` 输出或沿用原始媒体比例。
 - 调整遮罩颜色、透明度和粒子强度。
-- 在蒙德、璃月、稻妻、须弥、枫丹、纳塔和空月之歌七种任务徽记之间切换。
+- 在蒙德、璃月、稻妻、须弥、枫丹、纳塔、空月之歌、至冬、大赤沙海、沉玉谷、悠悠度假村、空之神殿和幻想真境剧诗十三种任务徽记之间切换。
 - 预览任务文字、徽记和粒子的统一动画时间线。
 - 导出 PNG 图片，或在浏览器支持时导出 MP4/WebM 动画视频。
 - 使用本地循环视频、毛玻璃界面和交互式 3D 景深粒子作为工作台皮肤。
@@ -73,6 +73,7 @@ http://127.0.0.1:8000/index.html
 │  └─ specs/                     功能设计说明
 ├─ tests/                        Node.js 单元测试与 Edge 冒烟测试
 │  └─ fixtures/                  冒烟测试上传用图片
+├─ tools/                        素材维护脚本（可选，需要 Pillow）
 ├─ outputs/
 │  └─ task-overlay-sample.png    README 展示图
 └─ samples/                      本地示例与素材视频（不入库）
@@ -97,7 +98,17 @@ node tests\emblem-loading.test.js
 node tests\edge-smoke.js
 ```
 
-该测试会检查七种任务徽记的渲染结果，并刷新 `outputs/task-overlay-sample.png`。
+该测试会检查十三种任务徽记的渲染结果，并刷新 `outputs/task-overlay-sample.png`。
+
+## 新增任务徽记
+
+新徽记的 PNG（透明底，建议 2446×2446）放入 `assets/` 后，运行：
+
+```powershell
+python tools\prepare-emblem.py assets\<新徽记>.png
+```
+
+脚本会把底色统一到现有金色系（主体 `#C9B066`，高光 `#DECC92`），生成 512px 的 `assets/preview/` 小图，然后只需在 `js/renderer-core.js`、`js/script.js` 和 `index.html` 中按现有条目注册即可。
 
 ## 视频导出说明
 

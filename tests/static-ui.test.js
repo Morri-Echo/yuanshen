@@ -15,6 +15,12 @@ const expectedEmblemOptions = [
   ['fengdan', '枫丹'],
   ['nata', '纳塔'],
   ['nuodekalai', '空月之歌'],
+  ['zhidong', '至冬'],
+  ['dachishahai', '大赤沙海'],
+  ['chenyugu', '沉玉谷'],
+  ['youyoudujiacun', '悠悠度假村'],
+  ['kongzhishendian', '空之神殿'],
+  ['huanxiangzhenjinjushi', '幻想真境剧诗'],
 ];
 
 const emblemFieldMarkup = html.match(
@@ -287,6 +293,12 @@ const expectedEmblemAssetPaths = [
   'assets/fengdan.png',
   'assets/nata.png',
   'assets/nuodekalai.png',
+  'assets/zhidong.png',
+  'assets/dachishahai.png',
+  'assets/chenyugu.png',
+  'assets/youyoudujiacun.png',
+  'assets/kongzhishendian.png',
+  'assets/huanxiangzhenjinjushi.png',
 ];
 
 for (const assetPath of expectedEmblemAssetPaths) {
@@ -304,6 +316,12 @@ const expectedPreviewEmblemAssetPaths = [
   'assets/preview/fengdan.png',
   'assets/preview/nata.png',
   'assets/preview/nuodekalai.png',
+  'assets/preview/zhidong.png',
+  'assets/preview/dachishahai.png',
+  'assets/preview/chenyugu.png',
+  'assets/preview/youyoudujiacun.png',
+  'assets/preview/kongzhishendian.png',
+  'assets/preview/huanxiangzhenjinjushi.png',
 ];
 
 for (const assetPath of expectedPreviewEmblemAssetPaths) {

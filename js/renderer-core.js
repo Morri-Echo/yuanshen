@@ -6,6 +6,12 @@ const EMBLEM_KEYS = Object.freeze([
   'fengdan',
   'nata',
   'nuodekalai',
+  'zhidong',
+  'dachishahai',
+  'chenyugu',
+  'youyoudujiacun',
+  'kongzhishendian',
+  'huanxiangzhenjinjushi',
 ]);
 
 const DEFAULTS = {

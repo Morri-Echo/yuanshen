@@ -14,6 +14,12 @@ const emblemCases = [
   { key: 'fengdan', label: '枫丹', src: 'assets/fengdan.png', previewSrc: 'assets/preview/fengdan.png' },
   { key: 'nata', label: '纳塔', src: 'assets/nata.png', previewSrc: 'assets/preview/nata.png' },
   { key: 'nuodekalai', label: '空月之歌', src: 'assets/nuodekalai.png', previewSrc: 'assets/preview/nuodekalai.png' },
+  { key: 'zhidong', label: '至冬', src: 'assets/zhidong.png', previewSrc: 'assets/preview/zhidong.png' },
+  { key: 'dachishahai', label: '大赤沙海', src: 'assets/dachishahai.png', previewSrc: 'assets/preview/dachishahai.png' },
+  { key: 'chenyugu', label: '沉玉谷', src: 'assets/chenyugu.png', previewSrc: 'assets/preview/chenyugu.png' },
+  { key: 'youyoudujiacun', label: '悠悠度假村', src: 'assets/youyoudujiacun.png', previewSrc: 'assets/preview/youyoudujiacun.png' },
+  { key: 'kongzhishendian', label: '空之神殿', src: 'assets/kongzhishendian.png', previewSrc: 'assets/preview/kongzhishendian.png' },
+  { key: 'huanxiangzhenjinjushi', label: '幻想真境剧诗', src: 'assets/huanxiangzhenjinjushi.png', previewSrc: 'assets/preview/huanxiangzhenjinjushi.png' },
 ];
 const emblemKeys = emblemCases.map(({ key }) => key);
 

@@ -10,6 +10,12 @@ const pngAssets = [
   'fengdan.png',
   'nata.png',
   'nuodekalai.png',
+  'zhidong.png',
+  'dachishahai.png',
+  'chenyugu.png',
+  'youyoudujiacun.png',
+  'kongzhishendian.png',
+  'huanxiangzhenjinjushi.png',
   'weiwandaixu-clean.png',
 ];
 

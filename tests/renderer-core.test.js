@@ -106,6 +106,12 @@ test('emblem keys list every supported option in canonical order', () => {
     'fengdan',
     'nata',
     'nuodekalai',
+    'zhidong',
+    'dachishahai',
+    'chenyugu',
+    'youyoudujiacun',
+    'kongzhishendian',
+    'huanxiangzhenjinjushi',
   ]);
 });
 

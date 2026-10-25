@@ -1,22 +1,22 @@
 (function () {
   const EMBLEM_ASSETS = Object.freeze({
-    mengdei: { label: '蒙德', src: 'assets/mengdei.png' },
-    liyue: { label: '璃月', src: 'assets/liyue.png' },
-    daoqi: { label: '稻妻', src: 'assets/daoqi.png' },
-    xuni: { label: '须弥', src: 'assets/xuni.png' },
-    fengdan: { label: '枫丹', src: 'assets/fengdan.png' },
-    nata: { label: '纳塔', src: 'assets/nata.png' },
-    nuodekalai: { label: '空月之歌', src: 'assets/nuodekalai.png' },
+    mengdei: { label: '蒙德', src: 'assets/mengdei.png', previewSrc: 'assets/preview/mengdei.png' },
+    liyue: { label: '璃月', src: 'assets/liyue.png', previewSrc: 'assets/preview/liyue.png' },
+    daoqi: { label: '稻妻', src: 'assets/daoqi.png', previewSrc: 'assets/preview/daoqi.png' },
+    xuni: { label: '须弥', src: 'assets/xuni.png', previewSrc: 'assets/preview/xuni.png' },
+    fengdan: { label: '枫丹', src: 'assets/fengdan.png', previewSrc: 'assets/preview/fengdan.png' },
+    nata: { label: '纳塔', src: 'assets/nata.png', previewSrc: 'assets/preview/nata.png' },
+    nuodekalai: { label: '空月之歌', src: 'assets/nuodekalai.png', previewSrc: 'assets/preview/nuodekalai.png' },
+    zhidong: { label: '至冬', src: 'assets/zhidong.png', previewSrc: 'assets/preview/zhidong.png' },
+    dachishahai: { label: '大赤沙海', src: 'assets/dachishahai.png', previewSrc: 'assets/preview/dachishahai.png' },
+    chenyugu: { label: '沉玉谷', src: 'assets/chenyugu.png', previewSrc: 'assets/preview/chenyugu.png' },
+    youyoudujiacun: { label: '悠悠度假村', src: 'assets/youyoudujiacun.png', previewSrc: 'assets/preview/youyoudujiacun.png' },
+    kongzhishendian: { label: '空之神殿', src: 'assets/kongzhishendian.png', previewSrc: 'assets/preview/kongzhishendian.png' },
+    huanxiangzhenjinjushi: { label: '幻想真境剧诗', src: 'assets/huanxiangzhenjinjushi.png', previewSrc: 'assets/preview/huanxiangzhenjinjushi.png' },
   });
-  const PREVIEW_EMBLEM_ASSETS = Object.freeze({
-    mengdei: { label: '蒙德', src: 'assets/preview/mengdei.png' },
-    liyue: { label: '璃月', src: 'assets/preview/liyue.png' },
-    daoqi: { label: '稻妻', src: 'assets/preview/daoqi.png' },
-    xuni: { label: '须弥', src: 'assets/preview/xuni.png' },
-    fengdan: { label: '枫丹', src: 'assets/preview/fengdan.png' },
-    nata: { label: '纳塔', src: 'assets/preview/nata.png' },
-    nuodekalai: { label: '空月之歌', src: 'assets/preview/nuodekalai.png' },
-  });
+  const PREVIEW_EMBLEM_ASSETS = Object.freeze(Object.fromEntries(
+    Object.entries(EMBLEM_ASSETS).map(([key, { label, previewSrc }]) => [key, { label, src: previewSrc }])
+  ));
   const CONTINUATION_PATH = 'assets/weiwandaixu-clean.png';
 
   const imageInput = document.getElementById('imageInput');

@@ -9,7 +9,21 @@ const workspace = path.resolve(__dirname, '..');
 const outputDir = path.join(workspace, 'outputs');
 const edgePath = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 const sampleScreenshotPath = path.join(outputDir, 'task-overlay-sample.png');
-const emblemKeys = ['mengdei', 'liyue', 'daoqi', 'xuni', 'fengdan', 'nata', 'nuodekalai'];
+const emblemKeys = [
+  'mengdei',
+  'liyue',
+  'daoqi',
+  'xuni',
+  'fengdan',
+  'nata',
+  'nuodekalai',
+  'zhidong',
+  'dachishahai',
+  'chenyugu',
+  'youyoudujiacun',
+  'kongzhishendian',
+  'huanxiangzhenjinjushi',
+];
 const port = process.env.EDGE_SMOKE_PORT || '8000';
 const origin = `http://127.0.0.1:${port}`;
 
